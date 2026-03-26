@@ -107,6 +107,67 @@ rara-bdd run --package my-core
 rara-bdd run --package my-cli
 ```
 
+## Agent Workflow
+
+rara-bdd is designed as a contract between two agents:
+
+### Phase 1: Design Agent creates issue
+
+The design agent analyzes requirements and produces:
+1. `.feature` file(s) with `@AC-XX` tagged scenarios
+2. An issue using the repo's issue template (`.feature` content is required)
+
+**Good .feature writing** — steps should be specific enough that an implementation agent can derive test logic:
+
+```gherkin
+# BAD — too vague, implementation agent can't derive assertions
+Scenario: AC-01 Login works
+  Given a user
+  When they login
+  Then it works
+
+# GOOD — specific, testable, maps to code
+Scenario: AC-01 Valid credentials return a session token
+  Given a registered user with email "test@example.com"
+  When the user submits correct credentials via POST /login
+  Then the response status is 200
+  And the response body contains a non-empty "token" field
+```
+
+### Phase 2: Implementation Agent writes code + tests
+
+The implementation agent:
+1. Reads the `.feature` from the issue
+2. Places it in `features/` directory
+3. Implements the feature code
+4. Writes `#[test] fn ac_XX_*()` for each AC
+5. Runs verification:
+
+```bash
+rara-bdd coverage --features-dir features   # No uncovered ACs
+rara-bdd run --features-dir features         # All tests pass
+rara-bdd trace --features-dir features       # Generate traceability matrix
+```
+
+All three must succeed before the task is considered complete.
+
+### Adding rara-bdd to a target project's AGENT.md
+
+Include this block in the target project's `AGENT.md` so implementation agents know the workflow:
+
+```markdown
+## BDD Verification
+
+This project uses rara-bdd for acceptance testing.
+
+- `.feature` files in `features/` define acceptance criteria
+- Each `@AC-XX` scenario must have corresponding `#[test] fn ac_XX_*()` tests
+- Before marking work complete, run:
+  - `rara-bdd coverage --features-dir features` (no uncovered ACs)
+  - `rara-bdd run --features-dir features` (all pass)
+  - `rara-bdd trace --features-dir features` (update traceability matrix)
+```
+
 ## Error Messages
 
 ```

@@ -1,0 +1,45 @@
+name: Bug Report
+description: Report a bug with reproduction steps as BDD scenarios
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug Report
+        Include a `.feature` scenario describing expected vs actual behavior.
+        The fix is complete only when `rara-bdd run` passes all ACs.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is broken? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature-file
+    attributes:
+      label: ".feature (Regression Test)"
+      description: |
+        Gherkin scenario(s) that capture the expected behavior.
+        This becomes the regression test — implementation agent writes #[test] fn ac_XX_*() to match.
+      placeholder: |
+        Feature: Bug fix description
+
+          @AC-01
+          Scenario: AC-01 Expected behavior that is currently broken
+            Given precondition
+            When the triggering action occurs
+            Then the correct result (not the buggy one)
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How to trigger the bug?
+    validations:
+      required: true
