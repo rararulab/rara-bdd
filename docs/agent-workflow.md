@@ -50,7 +50,7 @@ rara-bdd enables a two-agent pipeline where requirements flow from design to imp
 > Implement issue #1
 ```
 
-See each skill's SKILL.md for the full workflow, checklist, and failure handling.
+Skills are maintained in [rara-skills](https://github.com/rararulab/rara-skills). See each skill's SKILL.md for the full workflow, checklist, and failure handling.
 
 ## CI Integration
 
@@ -108,10 +108,12 @@ rara-bdd setup
 
 ### 3. Add Claude Code skills
 
+Install from [rara-skills](https://github.com/rararulab/rara-skills):
+
 ```bash
 mkdir -p .claude/skills
-cp path/to/rara-bdd/.claude/skills/bdd-design.md .claude/skills/
-cp path/to/rara-bdd/.claude/skills/bdd-implement.md .claude/skills/
+cp path/to/rara-skills/skills/bdd-design/SKILL.md .claude/skills/bdd-design.md
+cp path/to/rara-skills/skills/bdd-implement/SKILL.md .claude/skills/bdd-implement.md
 ```
 
 ### 4. Add CI workflow
