@@ -99,7 +99,7 @@ Provide a concise design spec that tells the implementation agent exactly what t
 Use the `feature.yml` issue template. The issue must include the Gherkin content and the design spec.
 
 ```bash
-gh issue create --template feature.yml \
+gh issue create --template bdd_task.yml \
   --title "feat(scope): short description" \
   --body "$(cat <<'EOF'
 ### Description

@@ -133,7 +133,7 @@ For rararulab repos, you can use the org reusable workflow if available:
 ```yaml
 jobs:
   bdd:
-    uses: rararulab/.github/.github/workflows/bdd.yml@main
+    uses: rararulab/.github/workflows/bdd.yml@main
 ```
 
 ## Bootstrapping a New Project
