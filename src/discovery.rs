@@ -2,7 +2,7 @@
 //!
 //! Scans a `features/` directory for `.feature` files, parses them
 //! with the `cucumber` crate's Gherkin parser, and extracts scenarios
-//! with their AC tags.
+//! with their steps.
 
 use std::{fs, path::Path};
 
@@ -10,24 +10,56 @@ use snafu::ResultExt;
 
 use crate::error::{self, FeaturesNotFoundSnafu, IoSnafu};
 
+/// Gherkin step keyword.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StepKeyword {
+    Given,
+    When,
+    Then,
+}
+
+impl StepKeyword {
+    /// Human-readable label.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Given => "Given",
+            Self::When => "When",
+            Self::Then => "Then",
+        }
+    }
+}
+
+impl std::fmt::Display for StepKeyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str(self.label()) }
+}
+
+/// A parsed step from a `.feature` file.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Step {
+    /// Keyword: Given, When, Then.
+    pub keyword: StepKeyword,
+    /// Raw step text (e.g., `a valid user "alice"`).
+    pub text:    String,
+}
+
 /// A discovered BDD scenario from a `.feature` file.
 #[derive(Debug, Clone)]
 pub struct Scenario {
-    /// Stable AC ID tag (e.g., `AC-01`).
-    pub ac_id:        String,
     /// Scenario title from `Scenario:` line.
     pub name:         String,
     /// Feature file relative path (e.g., `auth/login.feature`).
     pub feature_file: String,
+    /// Feature name from the `Feature:` line.
+    pub feature_name: String,
     /// All tags on this scenario (without `@` prefix).
     pub tags:         Vec<String>,
-    /// Given/When/Then steps as raw strings.
-    pub steps:        Vec<String>,
+    /// Ordered steps.
+    pub steps:        Vec<Step>,
 }
 
 /// Discover all scenarios from `.feature` files in the given directory.
 ///
-/// Optionally filters by AC ID, tag, or scenario name substring.
+/// Optionally filters by tag or scenario name substring.
 pub fn discover(features_dir: &str, filter: Option<&str>) -> error::Result<Vec<Scenario>> {
     let dir = Path::new(features_dir);
     if !dir.is_dir() {
@@ -43,13 +75,22 @@ pub fn discover(features_dir: &str, filter: Option<&str>) -> error::Result<Vec<S
     if let Some(f) = filter {
         let f_lower = f.to_lowercase();
         scenarios.retain(|s| {
-            s.ac_id.to_lowercase().contains(&f_lower)
-                || s.name.to_lowercase().contains(&f_lower)
+            s.name.to_lowercase().contains(&f_lower)
                 || s.tags.iter().any(|t| t.to_lowercase().contains(&f_lower))
         });
     }
 
     Ok(scenarios)
+}
+
+/// Extract all unique steps across all scenarios.
+pub fn unique_steps(scenarios: &[Scenario]) -> Vec<&Step> {
+    let mut seen = std::collections::HashSet::new();
+    scenarios
+        .iter()
+        .flat_map(|s| &s.steps)
+        .filter(|step| seen.insert((&step.keyword, &step.text)))
+        .collect()
 }
 
 /// Recursively scan directory for `.feature` files.
@@ -89,48 +130,36 @@ fn parse_feature(
                 reason: e.to_string(),
             })?;
 
+    let feature_name = feature.name.clone();
+
     for scenario in &feature.scenarios {
-        let tags = scenario.tags.clone();
-
-        let ac_id = tags
-            .iter()
-            .find(|t| is_ac_tag(t))
-            .cloned()
-            .unwrap_or_else(|| format!("UNTAGGED-{}", scenario.name.replace(' ', "-")));
-
-        let steps: Vec<String> = scenario
+        // Resolve And/But to the preceding Given/When/Then
+        let mut last_keyword = StepKeyword::Given;
+        let steps: Vec<Step> = scenario
             .steps
             .iter()
-            .map(|s| format!("{} {}", s.keyword.trim(), s.value))
+            .map(|s| {
+                let keyword = match s.ty {
+                    cucumber::gherkin::StepType::Given => StepKeyword::Given,
+                    cucumber::gherkin::StepType::When => StepKeyword::When,
+                    cucumber::gherkin::StepType::Then => StepKeyword::Then,
+                };
+                last_keyword = keyword;
+                Step {
+                    keyword: last_keyword,
+                    text:    s.value.clone(),
+                }
+            })
             .collect();
 
         scenarios.push(Scenario {
-            ac_id,
             name: scenario.name.clone(),
             feature_file: feature_file.to_string(),
-            tags,
+            feature_name: feature_name.clone(),
+            tags: scenario.tags.clone(),
             steps,
         });
     }
 
     Ok(())
-}
-
-/// Check if a tag matches the AC-XX pattern.
-fn is_ac_tag(tag: &str) -> bool {
-    tag.starts_with("AC-") && tag.len() > 3 && tag[3..].chars().all(|c| c.is_ascii_digit())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_ac_tag() {
-        assert!(is_ac_tag("AC-01"));
-        assert!(is_ac_tag("AC-123"));
-        assert!(!is_ac_tag("AC-"));
-        assert!(!is_ac_tag("ac-01"));
-        assert!(!is_ac_tag("hooks"));
-    }
 }

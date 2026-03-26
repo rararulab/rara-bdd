@@ -22,13 +22,24 @@ pub enum RaraBddError {
     #[snafu(display("features directory not found: {path}"))]
     FeaturesNotFound { path: String },
 
-    /// Test discovery failed (`cargo test -- --list`).
-    #[snafu(display("test discovery failed: {message}"))]
-    TestDiscovery { message: String },
+    /// Cargo.toml parse error.
+    #[snafu(display("failed to parse Cargo.toml at {path}: {reason}"))]
+    CargoTomlParse { path: String, reason: String },
 
-    /// Test execution failed.
-    #[snafu(display("test execution failed: {message}"))]
-    TestExecution { message: String },
+    /// Cargo.toml write error.
+    #[snafu(display("failed to write Cargo.toml at {path}: {source}"))]
+    CargoTomlWrite {
+        path:   String,
+        source: std::io::Error,
+    },
+
+    /// Step definition generation error.
+    #[snafu(display("step generation failed: {message}"))]
+    StepGeneration { message: String },
+
+    /// Step definition parsing error.
+    #[snafu(display("failed to parse step definitions in {path}: {reason}"))]
+    StepParse { path: String, reason: String },
 }
 
 /// Convenience alias for `Result<T, RaraBddError>`.

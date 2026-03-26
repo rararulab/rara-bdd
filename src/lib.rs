@@ -1,14 +1,12 @@
-//! rara-bdd — BDD testing framework for rararulab projects.
+//! rara-bdd — cucumber-rs scaffolding tool for AI agents.
 //!
-//! Discovers Gherkin `.feature` scenarios, matches them to `#[test]`
-//! functions by naming convention (`ac_XX_*`), runs matched tests,
-//! and reports coverage gaps.
+//! Generates cucumber-rs project skeletons and step definition code
+//! from Gherkin `.feature` files, enabling AI agents to quickly
+//! set up and use BDD testing in Rust projects.
 
 pub mod cli;
 pub mod discovery;
 pub mod error;
-pub mod matcher;
-pub mod reporter;
-pub mod runner;
+pub mod generate;
 pub mod setup;
-pub mod traceability;
+pub mod step_coverage;

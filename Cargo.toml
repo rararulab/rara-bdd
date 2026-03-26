@@ -1,8 +1,8 @@
 [package]
 name = "rara-bdd"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
-description = "BDD testing framework for rararulab — Gherkin + naming convention mapping to #[test]"
+description = "Cucumber-rs scaffolding tool for AI agents — generates step definitions from Gherkin features"
 license = "MIT"
 repository = "https://github.com/rararulab/rara-bdd"
 
@@ -18,8 +18,7 @@ regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 snafu = "0.9"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+toml_edit = "0.22"
 
 [dev-dependencies]
 assert_cmd = "2"
