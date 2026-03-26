@@ -42,3 +42,10 @@ Data flow: `discover() → load eval YAML → run_suite() → report()`
 - `serde_yaml` — eval DSL parsing
 - Upstream: consumed by all rararulab Rust projects as a dev tool
 - No runtime dependencies on target projects — communicates via `std::process::Command`
+
+## Documentation
+
+@docs/architecture.md
+@docs/eval-dsl.md
+@docs/cli.md
+@docs/integration.md
