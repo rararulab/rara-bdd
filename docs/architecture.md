@@ -1,64 +1,78 @@
 # Architecture
 
-## Two-Layer Design
+## Design
+
+rara-bdd is a **scaffolding tool** for cucumber-rs. It does not execute tests — that is cucumber-rs's job.
 
 ```
-.feature (Gherkin)  -->  #[test] fn ac_XX_*() (Rust)
---------------------     --------------------------
-WHAT to test             HOW to verify
+.feature (Gherkin)  -->  rara-bdd generate  -->  #[given]/#[when]/#[then] skeletons
+                                                  ↓
+                                             cargo test --test bdd (cucumber-rs)
 ```
 
-Gherkin scenarios declare acceptance criteria with `@AC-XX` tags. Rust `#[test]` functions verify them. rara-bdd connects the two by naming convention: `@AC-01` matches `fn ac_01_*()`.
+## What rara-bdd Does
+
+1. **Setup** — scaffolds a complete cucumber-rs project (Cargo.toml, bdd.rs, steps/)
+2. **Generate** — reads `.feature` files and generates step definition skeletons
+3. **Coverage** — compares feature steps against defined step annotations
+4. **List** — displays all discovered scenarios and steps
+
+## What cucumber-rs Does
+
+- Parses `.feature` files at runtime
+- Matches steps to `#[given]`/`#[when]`/`#[then]` functions
+- Executes scenarios with World state management
+- Reports pass/fail results
 
 ## Execution Flow
 
-1. **Discovery** (`src/discovery.rs`) -- Recursively scans `features/` for `.feature` files, parses Gherkin, extracts scenarios with `@AC-XX` tags
-2. **Matching** (`src/matcher.rs`) -- Runs `cargo test -- --list` to discover test functions, matches each `@AC-XX` tag to tests with `ac_XX_` prefix
-3. **Running** (`src/runner.rs`) -- Executes matched tests via `cargo test -- {name} --exact`, collects pass/fail results
-4. **Reporting** (`src/reporter/`) -- Outputs results as terminal (colored), JSON (machine-readable), or markdown
+### Generate
+
+1. **Discovery** (`src/discovery.rs`) — scans `features/` for `.feature` files, parses Gherkin, extracts scenarios with steps
+2. **Coverage check** (`src/step_coverage.rs`) — scans `tests/steps/` for existing `#[given]`/`#[when]`/`#[then]` annotations
+3. **Generation** (`src/generate.rs`) — creates skeleton functions for undefined steps, writes to `tests/steps/<feature>_steps.rs`
+
+### Coverage
+
+1. **Discovery** — same as above
+2. **Annotation scan** (`src/step_coverage.rs`) — regex-parses Rust source for step annotations
+3. **Comparison** — normalizes step text (quoted strings → `{string}`, numbers → `{int}`/`{float}`) and matches against annotations
 
 ## Key Data Types
 
 ```
+StepKeyword = Given | When | Then
+
+Step {
+    keyword: StepKeyword,
+    text:    "a registered user with email \"alice\""
+}
+
 Scenario {
-    ac_id:        "AC-01"              // From @AC-XX tag
-    name:         "Valid login"         // Scenario: line
-    feature_file: "auth/login.feature"  // Relative path
-    tags:         ["auth", "AC-01"]     // All tags
-    steps:        ["Given ...", ...]    // Given/When/Then
+    name:         "Valid credentials"
+    feature_file: "auth/login.feature"
+    feature_name: "User login"
+    tags:         ["auth"]
+    steps:        Vec<Step>
 }
 
-MatchedAc {
-    ac_id:        "AC-01"
-    scenario:     Scenario
-    test_names:   ["ac_01_valid_login", "ac_01_returns_token"]
+DefinedStep {
+    keyword:    StepKeyword,
+    expression: "a registered user with email {string}"
+    file:       "tests/steps/auth_steps.rs"
 }
-
-AcResult {
-    ac_id:        "AC-01"
-    status:       AcStatus             // Passed | Failed | Uncovered
-    test_results: Vec<TestResult>
-}
-
-AcStatus = Passed | Failed | Uncovered
 ```
-
-- **Passed** -- All matched tests passed
-- **Failed** -- At least one matched test failed
-- **Uncovered** -- No test function matches the `ac_XX_` prefix
 
 ## Module Map
 
 ```
 src/
-├── cli/mod.rs          # Clap CLI (run, list, coverage, trace)
+├── cli/mod.rs          # Clap CLI (setup, generate, coverage, list)
 ├── discovery.rs        # .feature scanning + Gherkin parsing
-├── matcher.rs          # Test discovery + AC-to-test matching
-├── runner.rs           # cargo test execution
-├── reporter/
-│   ├── terminal.rs     # Colored output
-│   ├── json.rs         # JSON stdout
-│   └── markdown.rs     # Markdown table
-├── traceability.rs     # TRACEABILITY.md generation
-└── error.rs            # RaraBddError (snafu)
+├── generate.rs         # Step definition skeleton generation
+├── step_coverage.rs    # Step annotation scanning + coverage analysis
+├── setup.rs            # Project scaffolding (Cargo.toml, bdd.rs, steps/)
+├── error.rs            # RaraBddError (snafu)
+├── main.rs             # CLI entry point
+└── lib.rs              # Module re-exports
 ```

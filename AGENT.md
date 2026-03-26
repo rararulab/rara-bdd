@@ -2,7 +2,9 @@
 
 ## What is rara-bdd?
 
-A BDD framework for Rust projects. It maps Gherkin `@AC-XX` tags in `.feature` files to `#[test] fn ac_XX_*()` functions by naming convention — no macros, no runtime, just naming.
+A cucumber-rs scaffolding tool for Rust projects. It generates project skeletons and step definition code from Gherkin `.feature` files — so AI agents can set up and use BDD testing without manual boilerplate.
+
+Test execution is handled entirely by [cucumber-rs](https://github.com/cucumber-rs/cucumber).
 
 ## Setup
 
@@ -13,101 +15,155 @@ rara-bdd setup
 
 `rara-bdd setup` will:
 - Create `features/` directory
-- Add BDD workflow instructions to your project's `CLAUDE.md`
+- Add `cucumber` and `tokio` to `[dev-dependencies]` in `Cargo.toml`
+- Add `[[test]] name = "bdd" harness = false` to `Cargo.toml`
+- Generate `tests/bdd.rs` with World struct and entry point
+- Generate `tests/steps/mod.rs`
+- Add BDD workflow instructions to `CLAUDE.md`
 
 ## How to Use (for AI Agents)
 
 ### Step 1: Write .feature files
 
-Create `features/<name>.feature` with `@AC-XX` tags:
+Create `features/<name>.feature` with Gherkin scenarios:
 
 ```gherkin
 Feature: User authentication
 
-  @AC-01
-  Scenario: AC-01 Valid credentials return a session token
+  Scenario: Valid credentials return a session token
     Given a registered user with email "test@example.com"
     When the user submits correct credentials via POST /login
     Then the response status is 200
     And the response body contains a non-empty "token" field
 
-  @AC-02
-  Scenario: AC-02 Invalid password returns 401
+  Scenario: Invalid password returns 401
     Given a registered user with email "test@example.com"
     When the user submits an incorrect password via POST /login
     Then the response status is 401
 ```
 
 Rules:
-- Every scenario needs an `@AC-XX` tag (incrementing)
-- Scenario name starts with the AC ID
-- Steps are concrete and verifiable, not vague
+- Steps should be concrete and verifiable, not vague
+- Use `Given`/`When`/`Then` (and `And`/`But` for continuation)
+- Quoted strings become `{string}` parameters, numbers become `{int}`/`{float}`
 
-### Step 2: Write matching tests
+### Step 2: Generate step skeletons
 
-`@AC-XX` → `fn ac_XX_*()`. The `ac_XX_` prefix is the matching key.
+```bash
+rara-bdd generate
+```
+
+This creates `tests/steps/<feature>_steps.rs` with skeleton functions:
 
 ```rust
-#[test]
-fn ac_01_valid_credentials_return_token() {
-    // Verifies AC-01
+use cucumber::{given, when, then};
+use crate::TestWorld;
+
+#[given(expr = "a registered user with email {string}")]
+async fn a_registered_user_with_email(world: &mut TestWorld, p0: String) {
+    todo!("implement: a registered user with email \"test@example.com\"")
 }
 
-#[test]
-fn ac_02_invalid_password_returns_401() {
-    // Verifies AC-02
+#[when("the user submits correct credentials via POST /login")]
+async fn the_user_submits_correct_credentials_via_post_login(world: &mut TestWorld) {
+    todo!("implement: the user submits correct credentials via POST /login")
 }
 ```
 
-One AC can have multiple test functions (all must share the `ac_XX_` prefix).
+### Step 3: Implement step definitions
 
-### Step 3: Verify
+Replace `todo!()` with actual test logic. Use the `TestWorld` struct (in `tests/bdd.rs`) to share state between steps.
+
+### Step 4: Verify
 
 ```bash
-rara-bdd run          # Execute all matched tests
-rara-bdd coverage     # Ensure every AC has tests
-rara-bdd trace        # Generate TRACEABILITY.md
+rara-bdd coverage             # Ensure every step has a definition
+cargo test --test bdd         # Run BDD tests via cucumber-rs
 ```
 
 A task is **done** when:
-- `rara-bdd run` → all PASS
-- `rara-bdd coverage` → zero uncovered ACs
+- `rara-bdd coverage` → zero missing steps
+- `cargo test --test bdd` → all scenarios pass
 
 ## Commands Reference
 
 | Command | Purpose | Exit 0 |
 |---------|---------|--------|
-| `rara-bdd run` | Run matched tests | All pass |
-| `rara-bdd run --filter AC-01` | Run specific AC | Filtered tests pass |
-| `rara-bdd run --report json` | JSON output (CI) | All pass |
-| `rara-bdd list` | Show AC ↔ test mapping | Always |
-| `rara-bdd coverage` | Report uncovered ACs | Full coverage |
-| `rara-bdd trace` | Generate TRACEABILITY.md | Always |
-| `rara-bdd setup` | Scaffold project | Always |
+| `rara-bdd setup` | Scaffold cucumber-rs project | Always |
+| `rara-bdd generate` | Generate step skeletons | Always |
+| `rara-bdd generate --dry-run` | Preview generation | Always |
+| `rara-bdd coverage` | Report missing step definitions | Full coverage |
+| `rara-bdd list` | Show features, scenarios, steps | Always |
+| `rara-bdd list --filter <tag>` | Filter by tag | Always |
+| `cargo test --test bdd` | Run BDD tests | All pass |
 
-All commands accept `--features-dir <path>` (default: `features`) and `--package <crate>` (for workspaces).
+All commands accept `--features-dir <path>` (default: `features`). `generate` and `coverage` also accept `--steps-dir <path>` (default: `tests/steps`).
 
 ## Project Layout After Setup
 
 ```
 my-project/
 ├── features/
-│   ├── auth.feature        # @AC-01, @AC-02, ...
-│   ├── billing.feature     # @AC-03, @AC-04, ...
-│   └── TRACEABILITY.md     # Auto-generated
+│   ├── auth.feature          # Gherkin scenarios
+│   └── billing.feature
 ├── tests/
-│   ├── auth.rs             # fn ac_01_*(), fn ac_02_*()
-│   └── billing.rs          # fn ac_03_*(), fn ac_04_*()
-├── CLAUDE.md               # Contains BDD workflow section
-└── Cargo.toml
+│   ├── bdd.rs                # World struct + cucumber-rs main
+│   └── steps/
+│       ├── mod.rs            # Module declarations
+│       ├── auth_steps.rs     # #[given]/#[when]/#[then] for auth
+│       └── billing_steps.rs  # #[given]/#[when]/#[then] for billing
+├── CLAUDE.md                 # Contains BDD workflow section
+└── Cargo.toml                # cucumber + tokio in [dev-dependencies]
 ```
+
+## Writing Good .feature Files
+
+Steps should be specific enough that an agent can derive test logic:
+
+```gherkin
+# BAD — too vague, agent can't derive assertions
+Scenario: Login works
+  Given a user
+  When they login
+  Then it works
+
+# GOOD — specific, testable, maps to code
+Scenario: Valid credentials return a session token
+  Given a registered user with email "test@example.com"
+  When the user submits correct credentials via POST /login
+  Then the response status is 200
+  And the response body contains a non-empty "token" field
+```
+
+## Agent Workflow
+
+rara-bdd is designed as a contract between two agents:
+
+### Phase 1: Design Agent creates .feature files
+
+The design agent analyzes requirements and produces Gherkin scenarios with concrete, verifiable steps.
+
+### Phase 2: Implementation Agent writes code + tests
+
+The implementation agent:
+1. Reads the `.feature` files
+2. Runs `rara-bdd generate` to create step skeletons
+3. Implements the feature code
+4. Implements step definitions (replaces `todo!()`)
+5. Verifies:
+
+```bash
+rara-bdd coverage             # No missing steps
+cargo test --test bdd         # All scenarios pass
+```
+
+Both must succeed before the task is considered complete.
 
 ## Developing rara-bdd Itself
 
-Architecture and internal conventions: see `@docs/architecture.md`, `@docs/cli.md`, `@docs/integration.md`.
+Architecture and internal conventions: see `docs/architecture.md`, `docs/cli.md`, `docs/integration.md`.
 
 Critical invariants:
 - Gherkin parsing: `cucumber::gherkin::Feature::parse` — no custom parser
 - Error handling: `snafu`, not `thiserror`
-- Structs with 3+ fields: `bon::Builder`
 - JSON to stdout, human text to stderr

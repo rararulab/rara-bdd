@@ -1,41 +1,94 @@
 # CLI Reference
 
-## `rara-bdd run`
+## `rara-bdd setup`
 
-Execute matched tests and report results.
+Scaffold cucumber-rs in the current project.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--features-dir <PATH>` | `features` | Features directory path |
-| `--filter <STRING>` | -- | Filter by AC ID, tag, or name (case-insensitive substring) |
-| `--report <FORMAT>` | `terminal` | `terminal` / `json` / `markdown` |
-| `--package <NAME>` | -- | Scope test discovery to a specific crate in a workspace |
+| `--features-dir <PATH>` | `features` | Features directory to create |
 
 ```bash
-rara-bdd run
-rara-bdd run --filter AC-01
-rara-bdd run --features-dir ./features --report json
-rara-bdd run --package my-crate
+rara-bdd setup
+rara-bdd setup --features-dir specs
 ```
 
-Exit: `0` = all pass, `1` = failure or uncovered ACs.
+Creates:
+- `features/` directory
+- `tests/bdd.rs` — World struct + cucumber-rs entry point
+- `tests/steps/mod.rs` — step module declarations
+- Modifies `Cargo.toml` — adds cucumber + tokio dev-dependencies, `[[test]]` section
+- Updates `CLAUDE.md` — adds BDD workflow instructions
 
-JSON output:
+All operations are idempotent (safe to run multiple times).
 
 ```json
 {
   "ok": true,
-  "action": "bdd-run",
-  "passed": 5, "failed": 0, "uncovered": 0, "total": 5,
-  "scenarios": [
-    {
-      "ac_id": "AC-01",
-      "scenario": "AC-01 Valid credentials",
-      "feature_file": "auth/login.feature",
-      "status": "passed",
-      "tests": ["ac_01_valid_credentials", "ac_01_returns_token"]
-    }
-  ]
+  "action": "setup",
+  "created_features_dir": true,
+  "cargo_toml": "modified",
+  "created_bdd_rs": true,
+  "created_steps_mod": true,
+  "claude_md": "created"
+}
+```
+
+---
+
+## `rara-bdd generate`
+
+Generate step definition skeletons from `.feature` files.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--features-dir <PATH>` | `features` | Features directory path |
+| `--steps-dir <PATH>` | `tests/steps` | Step definitions directory |
+| `--dry-run` | false | Preview without writing files |
+
+```bash
+rara-bdd generate
+rara-bdd generate --dry-run
+rara-bdd generate --steps-dir tests/steps
+```
+
+For each `.feature` file, creates `tests/steps/<feature>_steps.rs` with `#[given]`/`#[when]`/`#[then]` async functions containing `todo!()` bodies. Skips steps that already have definitions.
+
+```json
+{
+  "ok": true,
+  "action": "generate",
+  "files_created": ["tests/steps/auth_steps.rs"],
+  "steps_generated": 5,
+  "steps_skipped": 0
+}
+```
+
+---
+
+## `rara-bdd coverage`
+
+Report which feature steps lack step definitions.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--features-dir <PATH>` | `features` | Features directory path |
+| `--steps-dir <PATH>` | `tests/steps` | Step definitions directory |
+
+```bash
+rara-bdd coverage
+rara-bdd coverage --features-dir specs --steps-dir tests/steps
+```
+
+Exit: `0` = all steps covered, `1` = missing steps exist.
+
+```json
+{
+  "ok": true,
+  "action": "coverage",
+  "total_steps": 10,
+  "covered_steps": 10,
+  "missing_steps": 0
 }
 ```
 
@@ -43,77 +96,26 @@ JSON output:
 
 ## `rara-bdd list`
 
-List scenarios with their matched test functions.
+List all discovered scenarios and steps.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--features-dir <PATH>` | `features` | Features directory path |
-| `--filter <STRING>` | -- | Filter by AC ID, tag, or name |
-| `--package <NAME>` | -- | Scope test discovery to a specific crate |
+| `--filter <STRING>` | -- | Filter by tag (case-insensitive) |
 
 ```bash
 rara-bdd list
 rara-bdd list --filter auth
-rara-bdd list --package my-crate
+rara-bdd list --features-dir specs
 ```
 
 ---
 
-## `rara-bdd coverage`
+## Running Tests
 
-Report coverage gaps -- which ACs have no matching test.
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--features-dir <PATH>` | `features` | Features directory path |
-| `--package <NAME>` | -- | Scope test discovery to a specific crate |
+Test execution is handled by cucumber-rs, not rara-bdd:
 
 ```bash
-rara-bdd coverage
-rara-bdd coverage --package my-crate
-```
-
-```json
-{
-  "ok": true,
-  "action": "coverage",
-  "total": 10,
-  "covered": 8,
-  "uncovered": 2,
-  "uncovered_ids": ["AC-04", "AC-09"]
-}
-```
-
-Exit: `0` = full coverage, `1` = uncovered ACs exist.
-
----
-
-## `rara-bdd trace`
-
-Generate `TRACEABILITY.md` in features directory.
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--features-dir <PATH>` | `features` | Features directory path |
-| `--package <NAME>` | -- | Scope test discovery to a specific crate |
-
-```bash
-rara-bdd trace
-rara-bdd trace --package my-crate
-```
-
-```json
-{"ok": true, "action": "trace", "scenarios": 15}
-```
-
----
-
-## Filtering
-
-`--filter` matches case-insensitively against AC ID, scenario name, and tags:
-
-```bash
---filter AC-01       # exact AC
---filter auth        # tag or name containing "auth"
---filter "credentials"  # scenario name substring
+cargo test --test bdd           # Run all BDD scenarios
+cargo test --test bdd -- login  # Filter by scenario name
 ```
