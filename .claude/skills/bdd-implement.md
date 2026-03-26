@@ -1,17 +1,33 @@
 ---
 name: bdd-implement
-description: Pick up a BDD-specced GitHub issue and deliver working code with passing BDD tests. Never modify the .feature file — it is Agent 1's contract.
+description: "Use when implementing a BDD-specced GitHub issue, writing step definitions, delivering code with passing cucumber tests, or picking up an agent-designed feature task. Keywords: BDD implement, step definition, cucumber test, implement issue, feature implementation, agent task."
 ---
 
 # BDD Implement Skill
 
-You are Agent 2 (the implementation agent). Your job is to take a GitHub issue created by Agent 1 (with Gherkin acceptance criteria and a design spec) and deliver working code with all BDD tests passing.
+**IRON LAW: NEVER modify the .feature file.** The .feature content is Agent 1's contract. If a scenario seems wrong, add a `needs-design-review` label to the issue and comment — do not change the Gherkin.
 
-**CRITICAL RULE: You MUST NEVER modify the .feature file.** The .feature content is Agent 1's contract. If a scenario seems wrong, add a `needs-design-review` label to the issue and comment — do not change the Gherkin.
+You are Agent 2 (the implementation agent). Take a GitHub issue created by Agent 1 and deliver working code with all BDD tests passing.
 
-## Workflow
+## Workflow Checklist
 
-### 1. Read the Issue
+Copy and track progress:
+
+```
+- [ ] ⚠️ 1. Read the issue (extract Gherkin + design spec)
+- [ ] 2. Create worktree
+- [ ] 3. Run rara-bdd setup (idempotent)
+- [ ] ⛔ 4. Write .feature file (VERBATIM from issue — never modify)
+- [ ] 5. Run rara-bdd generate
+- [ ] ⚠️ 6. Run rara-bdd coverage (must exit 0)
+- [ ] 7. Implement: types → logic → integration → steps
+- [ ] ⚠️ 8. Verify: coverage + test + clippy (ALL three must pass)
+- [ ] ⛔ 9. Confirm with user before push & PR
+- [ ] 10. Push & create PR
+- [ ] ⚠️ 11. Wait for CI green
+```
+
+### 1. Read the Issue ⚠️
 
 ```bash
 gh issue view <N>
@@ -41,15 +57,9 @@ rara-bdd setup
 
 Safe to run even if already set up. Ensures `features/`, `tests/bdd.rs`, `tests/steps/mod.rs`, and Cargo.toml dependencies are in place.
 
-### 4. Write the .feature File
+### 4. Write the .feature File ⛔
 
-Copy the Gherkin content from the issue verbatim into `features/<name>.feature`. Do NOT modify, reword, or reorder the scenarios.
-
-```bash
-cat > features/<name>.feature <<'FEATURE_EOF'
-<paste Gherkin content from issue exactly as-is>
-FEATURE_EOF
-```
+Copy the Gherkin content from the issue **verbatim** into `features/<name>.feature`. Do NOT modify, reword, or reorder the scenarios.
 
 ### 5. Generate Step Skeletons
 
@@ -57,15 +67,15 @@ FEATURE_EOF
 rara-bdd generate
 ```
 
-This creates `tests/steps/<name>_steps.rs` with `todo!()` bodies for each step.
+Creates `tests/steps/<name>_steps.rs` with `todo!()` bodies for each step.
 
-### 6. Check Coverage
+### 6. Check Coverage ⚠️
 
 ```bash
 rara-bdd coverage
 ```
 
-Verify that all steps from the .feature file have skeleton definitions. If any are missing, run `rara-bdd generate` again.
+All steps from the .feature file must have skeleton definitions. If any are missing, run `rara-bdd generate` again.
 
 ### 7. Implement
 
@@ -87,30 +97,27 @@ The `TestWorld` struct in `tests/bdd.rs` carries state between steps:
 ```rust
 #[given(expr = "a registered user with email {string}")]
 async fn a_registered_user_with_email(world: &mut TestWorld, email: String) {
-    // Setup: store precondition state
     world.user_email = Some(email);
 }
 
 #[when("the user logs in with correct credentials")]
 async fn the_user_logs_in(world: &mut TestWorld) {
-    // Action: execute the operation under test
     let email = world.user_email.as_ref().expect("email set in Given step");
     world.response = Some(login(email, "correct-password").await);
 }
 
 #[then(expr = "the response status is {int}")]
 async fn the_response_status_is(world: &mut TestWorld, expected: i32) {
-    // Assert: verify the outcome
     let response = world.response.as_ref().expect("response set in When step");
     assert_eq!(response.status, expected as u16);
 }
 ```
 
-Add new fields to `TestWorld` as needed for your feature. Keep it minimal — only fields shared between steps.
+Add new fields to `TestWorld` as needed. Keep it minimal — only fields shared between steps.
 
-### 8. Verify
+### 8. Verify ⚠️
 
-All three checks must pass before pushing:
+All three checks must pass before proceeding:
 
 ```bash
 rara-bdd coverage                # Exit 0 = all steps covered
@@ -118,7 +125,11 @@ cargo test --test bdd            # All scenarios pass
 cargo clippy --workspace --all-targets --all-features --no-deps -- -D warnings
 ```
 
-### 9. Push & Create PR
+### 9. Confirm with User ⛔
+
+Present a summary of what was implemented (files changed, scenarios passing) and ask for confirmation before pushing. Do NOT push without approval.
+
+### 10. Push & Create PR
 
 ```bash
 git add -A
@@ -164,7 +175,7 @@ PR_EOF
 )" --label "enhancement" --label "core"
 ```
 
-### 10. Wait for CI Green
+### 11. Wait for CI Green ⚠️
 
 ```bash
 gh pr checks <PR-number> --watch
@@ -202,11 +213,11 @@ EOF
 )"
 ```
 
-## Rules Summary
+## Anti-Patterns
 
-1. **NEVER modify the .feature file** — it is Agent 1's contract
-2. Follow the implementation order: types -> logic -> integration -> steps
-3. All three verification commands must pass before pushing
-4. Use `TestWorld` for state sharing between steps (Given=setup, When=action, Then=assert)
-5. Add `needs-human` label when retries are exhausted — do not silently give up
-6. Wait for CI green before reporting completion
+- Modifying the .feature file for any reason (add `needs-design-review` label instead)
+- Implementing steps before data types and core logic (causes compile cascade)
+- Pushing without all three verification checks passing
+- Silently giving up when retries are exhausted (must add `needs-human` label)
+- Adding unnecessary fields to `TestWorld` (keep it minimal)
+- Pushing or creating PRs without user confirmation

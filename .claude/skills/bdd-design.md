@@ -1,36 +1,48 @@
 ---
 name: bdd-design
-description: Decompose a requirement into a GitHub issue with Gherkin acceptance criteria and a design spec for the implementation agent.
+description: "Use when designing BDD features, writing Gherkin acceptance criteria, decomposing requirements into testable scenarios, creating GitHub issues with .feature specs, or specifying acceptance criteria for the implementation agent. Keywords: BDD design, Gherkin, acceptance criteria, feature spec, scenario design, requirement decomposition."
 ---
 
 # BDD Design Skill
 
-You are Agent 1 (the design agent). Your job is to analyze a requirement and produce a GitHub issue containing Gherkin acceptance criteria and a design spec that Agent 2 (the implementation agent) will use to deliver working code with passing BDD tests.
+**IRON LAW: Every step must be specific enough that an agent can derive test assertions from the step text alone.** If a step says "it works" or "the result is correct", it is too vague — rewrite it with concrete, verifiable expectations.
 
-## Workflow
+You are Agent 1 (the design agent). Produce a GitHub issue containing Gherkin acceptance criteria and a design spec that Agent 2 (the implementation agent) will use to deliver working code with passing BDD tests.
 
-### 1. Understand the Codebase
+## Workflow Checklist
 
-Before writing anything, read the project context:
+Copy and track progress:
 
-```bash
-cat AGENT.md                    # Project conventions and architecture
-cat CLAUDE.md                   # Dev workflow and commands
-ls src/                         # Source structure
-ls features/ 2>/dev/null        # Existing .feature files
+```
+- [ ] ⚠️ 1. Understand the codebase (read AGENT.md, CLAUDE.md, src/, features/)
+- [ ] ⚠️ 2. Check existing step definitions (rara-bdd list)
+- [ ] ⚠️ 3. Write Gherkin .feature content (≥3 scenarios)
+- [ ] 4. Write design spec (files, signatures, constraints)
+- [ ] ⚠️ 5. Self-check (all checklist items pass)
+- [ ] ⛔ 6. Confirm with user before creating issue
+- [ ] 7. Create the GitHub issue
 ```
 
-### 2. Check Existing Step Definitions
+### 1. Understand the Codebase ⚠️
 
-Reuse existing steps whenever possible — do NOT create duplicates.
+Read the project context before writing anything:
+
+- Read `AGENT.md` — project conventions and architecture
+- Read `CLAUDE.md` — dev workflow and commands
+- Browse `src/` — source structure
+- Browse `features/` — existing .feature files (if any)
+
+### 2. Check Existing Step Definitions ⚠️
+
+Reuse existing steps — do NOT create duplicates.
 
 ```bash
-rara-bdd list                   # Show all features, scenarios, and steps
+rara-bdd list
 ```
 
-Review the output. If an existing step matches your intent (even partially), reuse its exact wording in your new scenarios.
+If an existing step matches your intent (even partially), reuse its exact wording.
 
-### 3. Write Gherkin .feature Content
+### 3. Write Gherkin .feature Content ⚠️
 
 Create complete Gherkin content with **at least 3 scenarios**: one happy path, one error case, and one edge case.
 
@@ -38,7 +50,7 @@ Create complete Gherkin content with **at least 3 scenarios**: one happy path, o
 
 - Tag the feature with `@module-name` (e.g., `@auth`, `@billing`)
 - Tag each scenario with `@AC-XX` (e.g., `@AC-01`, `@AC-02`)
-- Steps must be concrete and verifiable — an agent must be able to derive test logic from the step text alone
+- Steps must be concrete and verifiable — can an agent derive test logic from the step text alone?
 - Use `"quoted strings"` for string parameters, bare integers for number parameters
 - Reuse existing step definitions discovered via `rara-bdd list`
 - Use `Given` for preconditions, `When` for actions, `Then` for assertions
@@ -94,9 +106,26 @@ Provide a concise design spec that tells the implementation agent exactly what t
 - **Constraints** — invariants, error handling strategy, performance requirements
 - **Dependencies** — any new crates or services required
 
-### 5. Create the GitHub Issue
+### 5. Self-Check ⚠️
 
-Use the `feature.yml` issue template. The issue must include the Gherkin content and the design spec.
+Before presenting to the user, verify:
+
+- [ ] Valid Gherkin syntax (Feature/Scenario/Given/When/Then structure)
+- [ ] At least 3 scenarios (happy path + error + edge case)
+- [ ] Steps are concrete and verifiable (not vague)
+- [ ] Existing steps reused where applicable (checked via `rara-bdd list`)
+- [ ] `"quoted strings"` for string params, bare integers for numbers
+- [ ] Each scenario tagged with `@AC-XX`
+- [ ] Feature tagged with `@module-name`
+- [ ] Design spec lists all files to create/modify with signatures
+
+### 6. Confirm with User ⛔
+
+Present the complete Gherkin content and design spec to the user. Wait for explicit approval before creating the GitHub issue. Do NOT create the issue without confirmation.
+
+### 7. Create the GitHub Issue
+
+Use the `bdd_task.yml` issue template:
 
 ```bash
 gh issue create --template bdd_task.yml \
@@ -149,16 +178,10 @@ EOF
 - Type label: auto-applied by template (`enhancement`)
 - Component label: one of `core`, `backend`, `frontend`, `cli`, `ci`, `docs`
 
-### 6. Self-Check
+## Anti-Patterns
 
-Before submitting, verify:
-
-- [ ] Valid Gherkin syntax (Feature/Scenario/Given/When/Then structure)
-- [ ] At least 3 scenarios (happy path + error + edge case)
-- [ ] Steps are concrete and verifiable (not vague)
-- [ ] Existing steps reused where applicable (checked via `rara-bdd list`)
-- [ ] `"quoted strings"` for string params, bare integers for numbers
-- [ ] Each scenario tagged with `@AC-XX`
-- [ ] Feature tagged with `@module-name`
-- [ ] Issue has agent + type + component labels
-- [ ] Design spec lists all files to create/modify with signatures
+- Writing vague steps like "it works", "result is correct", "operation succeeds"
+- Leaking implementation details into steps (SQL, HTTP methods, table names)
+- Ignoring existing step definitions and creating duplicates
+- Writing only the happy path — always include error + edge cases
+- Creating the issue without user confirmation
