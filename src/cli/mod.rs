@@ -89,6 +89,20 @@ EXAMPLES:
         #[arg(long)]
         package: Vec<String>,
     },
+
+    /// Set up rara-bdd in the current project
+    ///
+    /// Creates the features/ directory and adds BDD workflow instructions
+    /// to CLAUDE.md so AI agents know how to use the framework.
+    #[command(after_help = "\
+EXAMPLES:
+    rara-bdd setup
+    rara-bdd setup --features-dir specs")]
+    Setup {
+        /// Path to features directory to create
+        #[arg(long, default_value = "features")]
+        features_dir: String,
+    },
 }
 
 /// Report output format.

@@ -1,62 +1,27 @@
-# rara-bdd — Agent Guidelines
+# rara-bdd — Agent Integration Guide
 
-## Purpose
+## What is rara-bdd?
 
-BDD testing framework for rararulab Rust projects.
-Parses Gherkin `.feature` files, matches `@AC-XX` tags to `#[test] fn ac_XX_*()` functions by naming convention, executes tests, and reports results.
+A BDD framework for Rust projects. It maps Gherkin `@AC-XX` tags in `.feature` files to `#[test] fn ac_XX_*()` functions by naming convention — no macros, no runtime, just naming.
 
-## Two-Agent Workflow
+## Setup
 
-rara-bdd enforces a contract between **design** and **implementation**:
-
-```
-Design Agent                       Implementation Agent
-─────────────                      ────────────────────
-1. Analyze requirements             4. Read .feature from issue
-2. Write .feature files             5. Write implementation code
-3. Create issue (must include       6. Write #[test] fn ac_XX_*()
-   .feature content)                7. rara-bdd run → all green to complete
+```bash
+cargo install --git https://github.com/rararulab/rara-bdd
+rara-bdd setup
 ```
 
-### Design Agent Responsibilities
+`rara-bdd setup` will:
+- Create `features/` directory
+- Add BDD workflow instructions to your project's `CLAUDE.md`
 
-- Break down requirements into Gherkin scenarios, each tagged with `@AC-XX`
-- `.feature` files are the acceptance criteria — must be included in the issue
-- Steps must be specific and testable (avoid vague "should work correctly")
-- One issue maps to one or more `.feature` files
+## How to Use (for AI Agents)
 
-### Implementation Agent Responsibilities
+### Step 1: Write .feature files
 
-- Retrieve `.feature` files from the issue and place them in the target project's `features/` directory
-- Read each scenario's Given/When/Then to understand what to verify
-- Write implementation code to satisfy the described behavior
-- Write `#[test] fn ac_XX_*()` test functions covering every AC
-- Run `rara-bdd run --features-dir features` to confirm all pass
-- Run `rara-bdd coverage` to confirm no AC is uncovered
-
-## Architecture
-
-```
-src/
-├── cli/mod.rs          # Clap CLI: run, list, coverage, trace
-├── discovery.rs        # Gherkin parser → Scenario structs
-├── matcher.rs          # AC tag → test function matching
-├── runner.rs           # cargo test execution + result collection
-├── reporter/
-│   ├── terminal.rs     # Colored human-readable output
-│   ├── json.rs         # Machine-readable JSON
-│   └── markdown.rs     # Agent-readable markdown table
-├── traceability.rs     # TRACEABILITY.md generation
-├── error.rs            # RaraBddError (snafu)
-└── main.rs             # Entry point
-```
-
-Data flow: `discover() → match_scenarios() → run_suite() → report()`
-
-## .feature File Conventions
+Create `features/<name>.feature` with `@AC-XX` tags:
 
 ```gherkin
-@auth
 Feature: User authentication
 
   @AC-01
@@ -71,69 +36,78 @@ Feature: User authentication
     Given a registered user with email "test@example.com"
     When the user submits an incorrect password via POST /login
     Then the response status is 401
-    And the response body contains error message "invalid credentials"
 ```
 
-**Requirements**:
-- Every scenario must have an `@AC-XX` tag (incrementing numbers)
-- Scenario name should start with the AC ID
-- Steps describe concrete behavior, not abstract intent
-- Given = preconditions, When = action, Then = verifiable outcome
+Rules:
+- Every scenario needs an `@AC-XX` tag (incrementing)
+- Scenario name starts with the AC ID
+- Steps are concrete and verifiable, not vague
 
-## Test Naming Convention
+### Step 2: Write matching tests
 
-`@AC-XX` → `fn ac_XX_*()` — the prefix `ac_XX_` is the matching key.
+`@AC-XX` → `fn ac_XX_*()`. The `ac_XX_` prefix is the matching key.
 
 ```rust
 #[test]
 fn ac_01_valid_credentials_return_token() {
-    // Matches AC-01: verify login returns token
-}
-
-#[test]
-fn ac_01_token_is_valid_jwt() {
-    // Same AC can have multiple tests
+    // Verifies AC-01
 }
 
 #[test]
 fn ac_02_invalid_password_returns_401() {
-    // Matches AC-02
+    // Verifies AC-02
 }
 ```
 
-## Issue Requirements
+One AC can have multiple test functions (all must share the `ac_XX_` prefix).
 
-Every issue must include:
-1. **Description** — what to implement and why
-2. **`.feature` file content** — complete Gherkin scenarios as acceptance criteria
-3. **Scope** — which modules/crates are affected
-
-Implementation agent completion criteria:
-- `rara-bdd run` — all PASS
-- `rara-bdd coverage` — no uncovered ACs
-- `rara-bdd trace` — traceability matrix is complete
-
-## Critical Invariants
-
-- Gherkin parsing uses `cucumber::gherkin::Feature::parse` — do NOT write a custom parser
-- AC ID (`@AC-XX`) is the sole routing key between Gherkin and tests
-- JSON output goes to stdout, human-readable text to stderr — never mix
-- Use `snafu` for error handling, NOT `thiserror`
-- Use `bon::Builder` for structs with 3+ fields
-- No interactive prompts — all parameters via CLI flags
-
-## Commands
+### Step 3: Verify
 
 ```bash
-rara-bdd run --features-dir features              # Execute test suite
-rara-bdd run --features-dir features --report json # JSON output (for CI)
-rara-bdd list --features-dir features              # List scenario ↔ test mapping
-rara-bdd coverage --features-dir features          # Check for uncovered ACs
-rara-bdd trace --features-dir features             # Generate TRACEABILITY.md
+rara-bdd run          # Execute all matched tests
+rara-bdd coverage     # Ensure every AC has tests
+rara-bdd trace        # Generate TRACEABILITY.md
 ```
 
-## Documentation
+A task is **done** when:
+- `rara-bdd run` → all PASS
+- `rara-bdd coverage` → zero uncovered ACs
 
-@docs/architecture.md
-@docs/cli.md
-@docs/integration.md
+## Commands Reference
+
+| Command | Purpose | Exit 0 |
+|---------|---------|--------|
+| `rara-bdd run` | Run matched tests | All pass |
+| `rara-bdd run --filter AC-01` | Run specific AC | Filtered tests pass |
+| `rara-bdd run --report json` | JSON output (CI) | All pass |
+| `rara-bdd list` | Show AC ↔ test mapping | Always |
+| `rara-bdd coverage` | Report uncovered ACs | Full coverage |
+| `rara-bdd trace` | Generate TRACEABILITY.md | Always |
+| `rara-bdd setup` | Scaffold project | Always |
+
+All commands accept `--features-dir <path>` (default: `features`) and `--package <crate>` (for workspaces).
+
+## Project Layout After Setup
+
+```
+my-project/
+├── features/
+│   ├── auth.feature        # @AC-01, @AC-02, ...
+│   ├── billing.feature     # @AC-03, @AC-04, ...
+│   └── TRACEABILITY.md     # Auto-generated
+├── tests/
+│   ├── auth.rs             # fn ac_01_*(), fn ac_02_*()
+│   └── billing.rs          # fn ac_03_*(), fn ac_04_*()
+├── CLAUDE.md               # Contains BDD workflow section
+└── Cargo.toml
+```
+
+## Developing rara-bdd Itself
+
+Architecture and internal conventions: see `@docs/architecture.md`, `@docs/cli.md`, `@docs/integration.md`.
+
+Critical invariants:
+- Gherkin parsing: `cucumber::gherkin::Feature::parse` — no custom parser
+- Error handling: `snafu`, not `thiserror`
+- Structs with 3+ fields: `bon::Builder`
+- JSON to stdout, human text to stderr

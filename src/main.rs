@@ -1,7 +1,7 @@
 use clap::Parser;
 use rara_bdd::{
     cli::{Cli, Command},
-    discovery, error, matcher, reporter, runner, traceability,
+    discovery, error, matcher, reporter, runner, setup, traceability,
 };
 
 fn main() {
@@ -100,6 +100,19 @@ fn run() -> error::Result<()> {
                     "total": summary.total,
                     "covered": summary.covered,
                     "uncovered": summary.uncovered,
+                })
+            );
+        }
+        Command::Setup { features_dir } => {
+            let summary = setup::run_setup(&features_dir)?;
+            println!(
+                "{}",
+                serde_json::json!({
+                    "ok": true,
+                    "action": "setup",
+                    "created_features_dir": summary.created_features_dir,
+                    "features_dir": summary.features_dir,
+                    "claude_md": summary.claude_md,
                 })
             );
         }

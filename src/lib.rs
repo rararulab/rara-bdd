@@ -10,4 +10,5 @@ pub mod error;
 pub mod matcher;
 pub mod reporter;
 pub mod runner;
+pub mod setup;
 pub mod traceability;
