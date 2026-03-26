@@ -4,9 +4,7 @@ mod json;
 mod markdown;
 mod terminal;
 
-use crate::cli::ReportFormat;
-use crate::discovery::Scenario;
-use crate::evaluator::SuiteResults;
+use crate::{cli::ReportFormat, discovery::Scenario, evaluator::SuiteResults};
 
 /// Output suite results in the requested format.
 pub fn report(results: &SuiteResults, format: ReportFormat) {
@@ -18,6 +16,4 @@ pub fn report(results: &SuiteResults, format: ReportFormat) {
 }
 
 /// List discovered scenarios to terminal.
-pub fn list_scenarios(scenarios: &[Scenario]) {
-    terminal::list_scenarios(scenarios);
-}
+pub fn list_scenarios(scenarios: &[Scenario]) { terminal::list_scenarios(scenarios); }

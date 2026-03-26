@@ -2,8 +2,7 @@
 
 use colored::Colorize;
 
-use crate::discovery::Scenario;
-use crate::evaluator::SuiteResults;
+use crate::{discovery::Scenario, evaluator::SuiteResults};
 
 /// Print suite results to terminal with colors.
 pub fn report(results: &SuiteResults) {

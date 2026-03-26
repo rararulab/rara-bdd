@@ -3,10 +3,12 @@
 //! Provides helpers to run commands with timeout, capture stdout/stderr,
 //! and store artifacts for debugging failed scenarios.
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{Duration, Instant};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+    time::{Duration, Instant},
+};
 
 use snafu::ResultExt;
 
@@ -16,17 +18,17 @@ use crate::error::{self, IoSnafu};
 #[derive(Debug, Clone)]
 pub struct RunArtifact {
     /// Command that was executed.
-    pub command: String,
+    pub command:   String,
     /// Exit code.
     pub exit_code: Option<i32>,
     /// Whether the command timed out.
     pub timed_out: bool,
     /// Captured stdout.
-    pub stdout: String,
+    pub stdout:    String,
     /// Captured stderr.
-    pub stderr: String,
+    pub stderr:    String,
     /// Execution duration.
-    pub duration: Duration,
+    pub duration:  Duration,
 }
 
 /// Run a command with a timeout and capture all output.
@@ -81,6 +83,4 @@ pub fn save_artifacts(artifact: &RunArtifact, output_dir: &Path) -> error::Resul
 }
 
 /// Default artifact directory for a scenario.
-pub fn artifact_dir(base: &Path, ac_id: &str) -> PathBuf {
-    base.join(".bdd-artifacts").join(ac_id)
-}
+pub fn artifact_dir(base: &Path, ac_id: &str) -> PathBuf { base.join(".bdd-artifacts").join(ac_id) }

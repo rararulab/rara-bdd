@@ -4,29 +4,30 @@
 //! with the `cucumber` crate's Gherkin parser, and extracts scenarios
 //! with their AC tags.
 
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 use snafu::ResultExt;
 
-use crate::error::{self, FeaturesNotFoundSnafu, IoSnafu};
-use crate::evaluator::loader;
+use crate::{
+    error::{self, FeaturesNotFoundSnafu, IoSnafu},
+    evaluator::loader,
+};
 
 /// A discovered BDD scenario from a `.feature` file.
 #[derive(Debug, Clone)]
 pub struct Scenario {
     /// Stable AC ID tag when present (e.g. `AC-01`).
-    pub ac_id: String,
+    pub ac_id:        String,
     /// Scenario title from `Scenario:` line.
-    pub name: String,
+    pub name:         String,
     /// Feature file relative path (e.g. `auth/login.feature`).
     pub feature_file: String,
     /// All tags on this scenario (without `@` prefix).
-    pub tags: Vec<String>,
+    pub tags:         Vec<String>,
     /// Given/When/Then steps as raw strings.
-    pub steps: Vec<String>,
+    pub steps:        Vec<String>,
     /// Paired eval config (loaded from .eval.yaml if present).
-    pub eval: Option<loader::AcEval>,
+    pub eval:         Option<loader::AcEval>,
 }
 
 /// Discover all scenarios from `.feature` files in the given directory.
@@ -66,11 +67,7 @@ pub fn discover(features_dir: &str, filter: Option<&str>) -> error::Result<Vec<S
 }
 
 /// Recursively scan directory for `.feature` files.
-fn discover_recursive(
-    base: &Path,
-    dir: &Path,
-    scenarios: &mut Vec<Scenario>,
-) -> error::Result<()> {
+fn discover_recursive(base: &Path, dir: &Path, scenarios: &mut Vec<Scenario>) -> error::Result<()> {
     let entries = fs::read_dir(dir).context(IoSnafu)?;
 
     for entry in entries {
@@ -99,14 +96,12 @@ fn parse_feature(
     feature_file: &str,
     scenarios: &mut Vec<Scenario>,
 ) -> error::Result<()> {
-    let feature = cucumber::gherkin::Feature::parse(
-        content,
-        cucumber::gherkin::GherkinEnv::default(),
-    )
-    .map_err(|e| error::RaraBddError::Gherkin {
-        path: feature_file.to_string(),
-        reason: e.to_string(),
-    })?;
+    let feature =
+        cucumber::gherkin::Feature::parse(content, cucumber::gherkin::GherkinEnv::default())
+            .map_err(|e| error::RaraBddError::Gherkin {
+                path:   feature_file.to_string(),
+                reason: e.to_string(),
+            })?;
 
     for scenario in &feature.scenarios {
         let tags = scenario.tags.clone();
@@ -139,9 +134,7 @@ fn parse_feature(
 
 /// Check if a tag matches the AC-XX pattern.
 fn is_ac_tag(tag: &str) -> bool {
-    tag.starts_with("AC-")
-        && tag.len() > 3
-        && tag[3..].chars().all(|c| c.is_ascii_digit())
+    tag.starts_with("AC-") && tag.len() > 3 && tag[3..].chars().all(|c| c.is_ascii_digit())
 }
 
 /// Derive the `.eval.yaml` path from a `.feature` file path.

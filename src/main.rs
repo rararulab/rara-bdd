@@ -1,11 +1,8 @@
 use clap::Parser;
-
-use rara_bdd::cli::{Cli, Command};
-use rara_bdd::discovery;
-use rara_bdd::error;
-use rara_bdd::evaluator;
-use rara_bdd::reporter;
-use rara_bdd::traceability;
+use rara_bdd::{
+    cli::{Cli, Command},
+    discovery, error, evaluator, reporter, traceability,
+};
 
 fn main() {
     tracing_subscriber::fmt()

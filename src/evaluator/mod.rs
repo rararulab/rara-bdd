@@ -6,8 +6,7 @@ pub mod loader;
 pub mod runtime;
 pub mod source;
 
-use crate::discovery::Scenario;
-use crate::error;
+use crate::{discovery::Scenario, error};
 
 /// Result of running the full BDD suite.
 #[derive(Debug)]
@@ -17,31 +16,23 @@ pub struct SuiteResults {
 
 impl SuiteResults {
     /// Whether all scenarios passed.
-    pub fn all_passed(&self) -> bool {
-        self.results.iter().all(|r| r.passed)
-    }
+    pub fn all_passed(&self) -> bool { self.results.iter().all(|r| r.passed) }
 
-    pub fn passed_count(&self) -> usize {
-        self.results.iter().filter(|r| r.passed).count()
-    }
+    pub fn passed_count(&self) -> usize { self.results.iter().filter(|r| r.passed).count() }
 
-    pub fn failed_count(&self) -> usize {
-        self.results.iter().filter(|r| !r.passed).count()
-    }
+    pub fn failed_count(&self) -> usize { self.results.iter().filter(|r| !r.passed).count() }
 
-    pub const fn total_count(&self) -> usize {
-        self.results.len()
-    }
+    pub const fn total_count(&self) -> usize { self.results.len() }
 }
 
 /// Result of evaluating a single scenario.
 #[derive(Debug)]
 pub struct ScenarioResult {
-    pub ac_id: String,
+    pub ac_id:         String,
     pub scenario_name: String,
-    pub feature_file: String,
-    pub passed: bool,
-    pub message: String,
+    pub feature_file:  String,
+    pub passed:        bool,
+    pub message:       String,
 }
 
 /// Run the full BDD evaluation suite.
@@ -58,11 +49,11 @@ pub fn run_suite(scenarios: &[Scenario], ci_safe_mode: bool) -> error::Result<Su
 fn evaluate_scenario(scenario: &Scenario, _ci_safe_mode: bool) -> ScenarioResult {
     let Some(eval) = &scenario.eval else {
         return ScenarioResult {
-            ac_id: scenario.ac_id.clone(),
+            ac_id:         scenario.ac_id.clone(),
             scenario_name: scenario.name.clone(),
-            feature_file: scenario.feature_file.clone(),
-            passed: false,
-            message: format!("{}: no eval config found", scenario.ac_id),
+            feature_file:  scenario.feature_file.clone(),
+            passed:        false,
+            message:       format!("{}: no eval config found", scenario.ac_id),
         };
     };
 
@@ -71,11 +62,11 @@ fn evaluate_scenario(scenario: &Scenario, _ci_safe_mode: bool) -> ScenarioResult
         for test in tests {
             if let Err(e) = runtime::run_cargo_test(&test.package, &test.filter) {
                 return ScenarioResult {
-                    ac_id: scenario.ac_id.clone(),
+                    ac_id:         scenario.ac_id.clone(),
                     scenario_name: scenario.name.clone(),
-                    feature_file: scenario.feature_file.clone(),
-                    passed: false,
-                    message: format!("{}: runtime test failed — {e}", scenario.ac_id),
+                    feature_file:  scenario.feature_file.clone(),
+                    passed:        false,
+                    message:       format!("{}: runtime test failed — {e}", scenario.ac_id),
                 };
             }
         }
@@ -86,11 +77,11 @@ fn evaluate_scenario(scenario: &Scenario, _ci_safe_mode: bool) -> ScenarioResult
         for assertion in assertions {
             if let Err(e) = source::check_source_assertion(assertion) {
                 return ScenarioResult {
-                    ac_id: scenario.ac_id.clone(),
+                    ac_id:         scenario.ac_id.clone(),
                     scenario_name: scenario.name.clone(),
-                    feature_file: scenario.feature_file.clone(),
-                    passed: false,
-                    message: format!("{}: source assertion failed — {e}", scenario.ac_id),
+                    feature_file:  scenario.feature_file.clone(),
+                    passed:        false,
+                    message:       format!("{}: source assertion failed — {e}", scenario.ac_id),
                 };
             }
         }
@@ -101,22 +92,22 @@ fn evaluate_scenario(scenario: &Scenario, _ci_safe_mode: bool) -> ScenarioResult
         for cmd in commands {
             if let Err(e) = runtime::run_command_assertion(cmd) {
                 return ScenarioResult {
-                    ac_id: scenario.ac_id.clone(),
+                    ac_id:         scenario.ac_id.clone(),
                     scenario_name: scenario.name.clone(),
-                    feature_file: scenario.feature_file.clone(),
-                    passed: false,
-                    message: format!("{}: command assertion failed — {e}", scenario.ac_id),
+                    feature_file:  scenario.feature_file.clone(),
+                    passed:        false,
+                    message:       format!("{}: command assertion failed — {e}", scenario.ac_id),
                 };
             }
         }
     }
 
     ScenarioResult {
-        ac_id: scenario.ac_id.clone(),
+        ac_id:         scenario.ac_id.clone(),
         scenario_name: scenario.name.clone(),
-        feature_file: scenario.feature_file.clone(),
-        passed: true,
-        message: format!("{}: acceptance criterion verified green", scenario.ac_id),
+        feature_file:  scenario.feature_file.clone(),
+        passed:        true,
+        message:       format!("{}: acceptance criterion verified green", scenario.ac_id),
     }
 }
 
@@ -124,8 +115,8 @@ fn evaluate_scenario(scenario: &Scenario, _ci_safe_mode: bool) -> ScenarioResult
 #[derive(Debug)]
 pub struct ValidationResult {
     pub feature_count: usize,
-    pub eval_count: usize,
-    pub errors: Vec<String>,
+    pub eval_count:    usize,
+    pub errors:        Vec<String>,
 }
 
 /// Validate all `.eval.yaml` files in the features directory.
@@ -169,10 +160,7 @@ fn validate_recursive(
             validate_recursive(&path, feature_count, eval_count, errors);
         } else if path.extension().is_some_and(|e| e == "feature") {
             *feature_count += 1;
-        } else if path
-            .to_string_lossy()
-            .ends_with(".eval.yaml")
-        {
+        } else if path.to_string_lossy().ends_with(".eval.yaml") {
             *eval_count += 1;
             if let Err(e) = loader::load_eval_file(&path.to_string_lossy()) {
                 errors.push(format!("{}: {e}", path.display()));

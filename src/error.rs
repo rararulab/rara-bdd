@@ -17,7 +17,7 @@ pub enum RaraBddError {
     /// YAML parsing error (eval DSL files).
     #[snafu(display("YAML parse error in {path}: {source}"))]
     Yaml {
-        path: String,
+        path:   String,
         source: serde_yaml::Error,
     },
 

@@ -1,13 +1,12 @@
 mod common;
 
+use std::fs;
+
 use assert_cmd::Command;
 use predicates::prelude::predicate;
-use std::fs;
 use tempfile::TempDir;
 
-fn cmd() -> Command {
-    Command::cargo_bin("rara-bdd").expect("binary should exist")
-}
+fn cmd() -> Command { Command::cargo_bin("rara-bdd").expect("binary should exist") }
 
 /// Create a temp dir with a minimal feature + eval setup.
 fn setup_features(tmp: &TempDir) -> String {

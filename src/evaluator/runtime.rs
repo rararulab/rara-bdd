@@ -1,11 +1,11 @@
 //! Runtime test executor.
 //!
-//! Runs `cargo test` commands and command assertions via `std::process::Command`.
+//! Runs `cargo test` commands and command assertions via
+//! `std::process::Command`.
 
 use std::process::Command;
 
-use crate::error;
-use crate::evaluator::loader::CommandAssertion;
+use crate::{error, evaluator::loader::CommandAssertion};
 
 /// Run a single `cargo test -p {package} -- {filter}` and assert it passes.
 pub fn run_cargo_test(package: &str, filter: &str) -> error::Result<()> {
