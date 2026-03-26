@@ -1,7 +1,7 @@
 use clap::Parser;
 use rara_bdd::{
     cli::{Cli, Command},
-    discovery, error, evaluator, reporter, traceability,
+    discovery, error, matcher, reporter, runner, traceability,
 };
 
 fn main() {
@@ -30,10 +30,12 @@ fn run() -> error::Result<()> {
             features_dir,
             filter,
             report,
-            r#mock,
+            package,
         } => {
             let scenarios = discovery::discover(&features_dir, filter.as_deref())?;
-            let results = evaluator::run_suite(&scenarios, r#mock)?;
+            let test_names = matcher::discover_tests(&package)?;
+            let matched = matcher::match_scenarios(&scenarios, &test_names);
+            let results = runner::run_suite(&matched)?;
             reporter::report(&results, report);
 
             if !results.all_passed() {
@@ -43,32 +45,61 @@ fn run() -> error::Result<()> {
         Command::List {
             features_dir,
             filter,
+            package,
         } => {
             let scenarios = discovery::discover(&features_dir, filter.as_deref())?;
-            reporter::list_scenarios(&scenarios);
+            let test_names = matcher::discover_tests(&package)?;
+            let matched = matcher::match_scenarios(&scenarios, &test_names);
+            reporter::list_matched(&matched);
         }
-        Command::Validate { features_dir } => {
-            let result = evaluator::validate(&features_dir)?;
+        Command::Coverage {
+            features_dir,
+            package,
+        } => {
+            let scenarios = discovery::discover(&features_dir, None)?;
+            let test_names = matcher::discover_tests(&package)?;
+            let matched = matcher::match_scenarios(&scenarios, &test_names);
+            let summary = matcher::coverage_summary(&matched);
+
+            let uncovered_ids: Vec<&str> = matched
+                .iter()
+                .filter(|m| !m.is_covered())
+                .map(|m| m.scenario.ac_id.as_str())
+                .collect();
+
             println!(
                 "{}",
                 serde_json::json!({
-                    "ok": true,
-                    "action": "validate",
-                    "features": result.feature_count,
-                    "evals": result.eval_count,
-                    "errors": result.errors,
+                    "ok": summary.uncovered == 0,
+                    "action": "coverage",
+                    "total": summary.total,
+                    "covered": summary.covered,
+                    "uncovered": summary.uncovered,
+                    "uncovered_ids": uncovered_ids,
                 })
             );
+
+            if summary.uncovered > 0 {
+                std::process::exit(1);
+            }
         }
-        Command::Trace { features_dir } => {
+        Command::Trace {
+            features_dir,
+            package,
+        } => {
             let scenarios = discovery::discover(&features_dir, None)?;
-            traceability::generate(&features_dir, &scenarios)?;
+            let test_names = matcher::discover_tests(&package)?;
+            let matched = matcher::match_scenarios(&scenarios, &test_names);
+            let summary = matcher::coverage_summary(&matched);
+            traceability::generate(&features_dir, &matched)?;
             println!(
                 "{}",
                 serde_json::json!({
                     "ok": true,
                     "action": "trace",
-                    "scenarios": scenarios.len(),
+                    "total": summary.total,
+                    "covered": summary.covered,
+                    "uncovered": summary.uncovered,
                 })
             );
         }

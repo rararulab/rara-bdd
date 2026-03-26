@@ -3,6 +3,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
 /// rara-bdd — BDD testing framework for rararulab projects.
+///
+/// Maps Gherkin @AC-XX tags to `#[test] fn ac_XX_*()` by naming convention.
 #[derive(Parser)]
 #[command(name = "rara-bdd", version)]
 pub struct Cli {
@@ -13,13 +15,13 @@ pub struct Cli {
 /// Available subcommands.
 #[derive(Subcommand)]
 pub enum Command {
-    /// Run BDD scenarios and evaluate acceptance criteria
+    /// Run BDD scenarios — discover ACs, match to tests, execute, report
     #[command(after_help = "\
 EXAMPLES:
     rara-bdd run
     rara-bdd run --filter AC-01
     rara-bdd run --features-dir ./features --report json
-    rara-bdd run --mock")]
+    rara-bdd run --package my-crate")]
     Run {
         /// Path to features directory
         #[arg(long, default_value = "features")]
@@ -33,12 +35,12 @@ EXAMPLES:
         #[arg(long, value_enum, default_value_t = ReportFormat::Terminal)]
         report: ReportFormat,
 
-        /// CI-safe mode (skip external dependencies)
+        /// Cargo package(s) to scan for tests (repeatable, default: all)
         #[arg(long)]
-        r#mock: bool,
+        package: Vec<String>,
     },
 
-    /// List discovered BDD scenarios without running them
+    /// List discovered ACs and their matched tests
     #[command(after_help = "\
 EXAMPLES:
     rara-bdd list
@@ -52,17 +54,25 @@ EXAMPLES:
         /// Filter scenarios by AC ID, tag, or name
         #[arg(long)]
         filter: Option<String>,
+
+        /// Cargo package(s) to scan for tests (repeatable, default: all)
+        #[arg(long)]
+        package: Vec<String>,
     },
 
-    /// Validate .eval.yaml files (schema check, no execution)
+    /// Check coverage — report ACs without matching tests
     #[command(after_help = "\
 EXAMPLES:
-    rara-bdd validate
-    rara-bdd validate --features-dir ./features")]
-    Validate {
+    rara-bdd coverage
+    rara-bdd coverage --features-dir ./features")]
+    Coverage {
         /// Path to features directory
         #[arg(long, default_value = "features")]
         features_dir: String,
+
+        /// Cargo package(s) to scan for tests (repeatable, default: all)
+        #[arg(long)]
+        package: Vec<String>,
     },
 
     /// Generate or update the TRACEABILITY.md matrix
@@ -74,6 +84,10 @@ EXAMPLES:
         /// Path to features directory
         #[arg(long, default_value = "features")]
         features_dir: String,
+
+        /// Cargo package(s) to scan for tests (repeatable, default: all)
+        #[arg(long)]
+        package: Vec<String>,
     },
 }
 

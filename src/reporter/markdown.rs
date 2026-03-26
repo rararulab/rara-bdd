@@ -1,25 +1,30 @@
 //! Agent-readable markdown reporter.
 
-use crate::evaluator::SuiteResults;
+use crate::runner::SuiteResults;
 
 /// Print suite results as markdown to stdout.
 pub fn report(results: &SuiteResults) {
     println!("# BDD Suite Results\n");
     println!(
-        "**{}** passed, **{}** failed, **{}** total\n",
+        "**{}** passed, **{}** failed, **{}** uncovered, **{}** total\n",
         results.passed_count(),
         results.failed_count(),
+        results.uncovered_count(),
         results.total_count()
     );
 
-    println!("| AC | Scenario | Feature | Status | Message |");
-    println!("|---|---|---|---|---|");
+    println!("| AC | Scenario | Feature | Status | Tests | Message |");
+    println!("|---|---|---|---|---|---|");
 
     for r in &results.results {
-        let status = if r.passed { "PASS" } else { "FAIL" };
         println!(
-            "| {} | {} | {} | {} | {} |",
-            r.ac_id, r.scenario_name, r.feature_file, status, r.message
+            "| {} | {} | {} | {} | {} | {} |",
+            r.ac_id,
+            r.scenario_name,
+            r.feature_file,
+            r.status.label(),
+            r.tests.len(),
+            r.message
         );
     }
 }

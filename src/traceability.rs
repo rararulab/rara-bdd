@@ -1,62 +1,58 @@
 //! Traceability matrix generation.
 //!
-//! Generates `TRACEABILITY.md` from discovered scenarios and their eval
-//! configs, mapping every AC to its feature file, evaluator assertions, and CI
-//! status.
+//! Generates `TRACEABILITY.md` mapping every AC to its feature file
+//! and matched test functions.
 
 use std::{fmt::Write, fs, path::Path};
 
 use snafu::ResultExt;
 
 use crate::{
-    discovery::Scenario,
     error::{self, IoSnafu},
+    matcher::MatchedAc,
 };
 
 /// Generate `TRACEABILITY.md` in the features directory.
-pub fn generate(features_dir: &str, scenarios: &[Scenario]) -> error::Result<()> {
+pub fn generate(features_dir: &str, matched: &[MatchedAc]) -> error::Result<()> {
     let mut output = String::new();
 
     output.push_str("# BDD AC Traceability Matrix\n\n");
-    output.push_str(
-        "| AC ID | Description | Feature File | Runtime Tests | Source Assertions | Status |\n",
-    );
-    output.push_str("|---|---|---|---|---|---|\n");
+    output.push_str("| AC ID | Scenario | Feature File | Tests | Coverage |\n");
+    output.push_str("|---|---|---|---|---|\n");
 
-    for scenario in scenarios {
-        let (runtime_count, source_count, status) =
-            scenario
-                .eval
-                .as_ref()
-                .map_or((0, 0, "missing eval"), |eval| {
-                    let rt = eval.runtime_tests.as_ref().map_or(0, Vec::len);
-                    let sa = eval.source_assertions.as_ref().map_or(0, Vec::len);
-                    let status = if rt > 0 || sa > 0 {
-                        "configured"
-                    } else {
-                        "skeleton"
-                    };
-                    (rt, sa, status)
-                });
+    for m in matched {
+        let tests_display = if m.tests.is_empty() {
+            "\u{2014}".to_string()
+        } else {
+            m.tests
+                .iter()
+                .map(|t| format!("`{t}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        let coverage = if m.is_covered() {
+            "covered"
+        } else {
+            "uncovered"
+        };
 
         let _ = writeln!(
             output,
-            "| {} | {} | {} | {} | {} | {} |",
-            scenario.ac_id,
-            scenario.name,
-            scenario.feature_file,
-            runtime_count,
-            source_count,
-            status
+            "| {} | {} | {} | {} | {} |",
+            m.scenario.ac_id, m.scenario.name, m.scenario.feature_file, tests_display, coverage
         );
     }
 
+    let covered = matched.iter().filter(|m| m.is_covered()).count();
+    let uncovered = matched.len() - covered;
+
     let _ = write!(
         output,
-        "\n## Summary\n\n- **Total ACs**: {}\n- **With eval**: {}\n- **Missing eval**: {}\n",
-        scenarios.len(),
-        scenarios.iter().filter(|s| s.eval.is_some()).count(),
-        scenarios.iter().filter(|s| s.eval.is_none()).count(),
+        "\n## Summary\n\n- **Total ACs**: {}\n- **Covered**: {}\n- **Uncovered**: {}\n",
+        matched.len(),
+        covered,
+        uncovered,
     );
 
     let path = Path::new(features_dir).join("TRACEABILITY.md");
