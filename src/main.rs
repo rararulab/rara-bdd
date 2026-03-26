@@ -31,12 +31,22 @@ fn run() -> error::Result<()> {
             filter,
             report,
             r#mock,
+            strict,
         } => {
             let scenarios = discovery::discover(&features_dir, filter.as_deref())?;
             let results = evaluator::run_suite(&scenarios, r#mock)?;
             reporter::report(&results, report);
 
             if !results.all_passed() {
+                std::process::exit(1);
+            }
+
+            if strict && !results.all_verified() {
+                eprintln!(
+                    "Strict mode: {} skeleton, {} weak — all ACs must have behavioral tests",
+                    results.skeleton_count(),
+                    results.weak_count()
+                );
                 std::process::exit(1);
             }
         }
@@ -52,11 +62,12 @@ fn run() -> error::Result<()> {
             println!(
                 "{}",
                 serde_json::json!({
-                    "ok": true,
+                    "ok": result.errors.is_empty(),
                     "action": "validate",
                     "features": result.feature_count,
                     "evals": result.eval_count,
                     "errors": result.errors,
+                    "warnings": result.warnings,
                 })
             );
         }

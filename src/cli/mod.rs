@@ -19,6 +19,7 @@ EXAMPLES:
     rara-bdd run
     rara-bdd run --filter AC-01
     rara-bdd run --features-dir ./features --report json
+    rara-bdd run --strict
     rara-bdd run --mock")]
     Run {
         /// Path to features directory
@@ -36,6 +37,11 @@ EXAMPLES:
         /// CI-safe mode (skip external dependencies)
         #[arg(long)]
         r#mock: bool,
+
+        /// Fail on skeleton or weak assertions (exit 1 if any AC lacks
+        /// behavioral tests)
+        #[arg(long)]
+        strict: bool,
     },
 
     /// List discovered BDD scenarios without running them
@@ -54,7 +60,7 @@ EXAMPLES:
         filter: Option<String>,
     },
 
-    /// Validate .eval.yaml files (schema check, no execution)
+    /// Validate .eval.yaml files (schema check + quality analysis)
     #[command(after_help = "\
 EXAMPLES:
     rara-bdd validate

@@ -8,8 +8,9 @@ use tempfile::TempDir;
 
 fn cmd() -> Command { Command::cargo_bin("rara-bdd").expect("binary should exist") }
 
-/// Create a temp dir with a minimal feature + eval setup.
-fn setup_features(tmp: &TempDir) -> String {
+/// Create a temp dir with a skeleton feature + eval setup (source assertions
+/// only).
+fn setup_skeleton_features(tmp: &TempDir) -> String {
     let features_dir = tmp.path().join("features");
     fs::create_dir_all(&features_dir).unwrap();
 
@@ -42,10 +43,44 @@ Feature: Example feature
     features_dir.to_string_lossy().to_string()
 }
 
+/// Create a temp dir with a weak feature (short contains patterns).
+fn setup_weak_features(tmp: &TempDir) -> String {
+    let features_dir = tmp.path().join("features");
+    fs::create_dir_all(&features_dir).unwrap();
+
+    fs::write(
+        features_dir.join("weak.feature"),
+        r"@weak
+Feature: Weak feature
+  @AC-01
+  Scenario: AC-01 Weak check
+    Given a file exists
+    When I check contents
+    Then it has a keyword
+",
+    )
+    .unwrap();
+
+    fs::write(
+        features_dir.join("weak.eval.yaml"),
+        r#"AC-01:
+  description: "Weak check"
+  source_assertions:
+    - file: Cargo.toml
+      contains:
+        - "name"
+      description: "Has name field"
+"#,
+    )
+    .unwrap();
+
+    features_dir.to_string_lossy().to_string()
+}
+
 #[test]
 fn list_shows_scenarios() {
     let tmp = TempDir::new().unwrap();
-    let features_dir = setup_features(&tmp);
+    let features_dir = setup_skeleton_features(&tmp);
 
     cmd()
         .args(["list", "--features-dir", &features_dir])
@@ -55,27 +90,57 @@ fn list_shows_scenarios() {
 }
 
 #[test]
-fn run_passes_with_valid_source_assertion() {
+fn run_skeleton_passes_without_strict() {
     let tmp = TempDir::new().unwrap();
-    let features_dir = setup_features(&tmp);
+    let features_dir = setup_skeleton_features(&tmp);
 
     cmd()
         .args(["run", "--features-dir", &features_dir, "--report", "json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains(r#""ok":true"#));
+        .stdout(predicate::str::contains(r#""verdict":"skeleton""#));
 }
 
 #[test]
-fn validate_checks_eval_files() {
+fn run_skeleton_fails_with_strict() {
     let tmp = TempDir::new().unwrap();
-    let features_dir = setup_features(&tmp);
+    let features_dir = setup_skeleton_features(&tmp);
+
+    cmd()
+        .args([
+            "run",
+            "--features-dir",
+            &features_dir,
+            "--report",
+            "json",
+            "--strict",
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn run_weak_shows_verdict() {
+    let tmp = TempDir::new().unwrap();
+    let features_dir = setup_weak_features(&tmp);
+
+    cmd()
+        .args(["run", "--features-dir", &features_dir, "--report", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""verdict":"weak""#));
+}
+
+#[test]
+fn validate_reports_warnings() {
+    let tmp = TempDir::new().unwrap();
+    let features_dir = setup_skeleton_features(&tmp);
 
     cmd()
         .args(["validate", "--features-dir", &features_dir])
         .assert()
         .success()
-        .stdout(predicate::str::contains(r#""ok":true"#));
+        .stdout(predicate::str::contains("warnings"));
 }
 
 #[test]
@@ -90,7 +155,7 @@ fn run_fails_with_missing_features_dir() {
 #[test]
 fn trace_generates_traceability_md() {
     let tmp = TempDir::new().unwrap();
-    let features_dir = setup_features(&tmp);
+    let features_dir = setup_skeleton_features(&tmp);
 
     cmd()
         .args(["trace", "--features-dir", &features_dir])
@@ -101,4 +166,19 @@ fn trace_generates_traceability_md() {
     assert!(trace_path.exists());
     let content = fs::read_to_string(trace_path).unwrap();
     assert!(content.contains("AC-01"));
+    assert!(content.contains("skeleton"));
+}
+
+#[test]
+fn trace_shows_quality_column() {
+    let tmp = TempDir::new().unwrap();
+    let features_dir = setup_skeleton_features(&tmp);
+
+    cmd()
+        .args(["trace", "--features-dir", &features_dir])
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(tmp.path().join("features/TRACEABILITY.md")).unwrap();
+    assert!(content.contains("Quality"));
 }

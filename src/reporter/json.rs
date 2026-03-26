@@ -13,6 +13,8 @@ pub fn report(results: &SuiteResults) {
                 "scenario": r.scenario_name,
                 "feature_file": r.feature_file,
                 "passed": r.passed,
+                "verdict": r.verdict.label(),
+                "warnings": r.warnings,
                 "message": r.message,
             })
         })
@@ -21,10 +23,12 @@ pub fn report(results: &SuiteResults) {
     println!(
         "{}",
         serde_json::json!({
-            "ok": results.all_passed(),
+            "ok": results.all_verified(),
             "action": "bdd-run",
             "passed": results.passed_count(),
             "failed": results.failed_count(),
+            "skeleton": results.skeleton_count(),
+            "weak": results.weak_count(),
             "total": results.total_count(),
             "scenarios": scenarios,
         })

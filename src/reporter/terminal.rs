@@ -1,8 +1,13 @@
 //! Colored terminal reporter.
 
+use std::fmt::Write;
+
 use colored::Colorize;
 
-use crate::{discovery::Scenario, evaluator::SuiteResults};
+use crate::{
+    discovery::Scenario,
+    evaluator::{SuiteResults, quality::Verdict},
+};
 
 /// Print suite results to terminal with colors.
 pub fn report(results: &SuiteResults) {
@@ -10,7 +15,11 @@ pub fn report(results: &SuiteResults) {
 
     for result in &results.results {
         let status = if result.passed {
-            "PASS".green()
+            match result.verdict {
+                Verdict::Verified => "PASS".green(),
+                Verdict::Skeleton => "SKEL".yellow(),
+                Verdict::Weak => "WEAK".yellow(),
+            }
         } else {
             "FAIL".red()
         };
@@ -25,18 +34,26 @@ pub fn report(results: &SuiteResults) {
         if !result.passed {
             println!("    {}", result.message.dimmed());
         }
+
+        for warning in &result.warnings {
+            println!("    {} {}", "warn:".yellow(), warning.dimmed());
+        }
     }
 
-    println!(
-        "\n{}",
-        format!(
-            "Summary: {} passed, {} failed, {} total",
-            results.passed_count(),
-            results.failed_count(),
-            results.total_count()
-        )
-        .bold()
+    let mut summary = format!(
+        "Summary: {} passed, {} failed, {} total",
+        results.passed_count(),
+        results.failed_count(),
+        results.total_count()
     );
+
+    let skel = results.skeleton_count();
+    let weak = results.weak_count();
+    if skel > 0 || weak > 0 {
+        let _ = write!(summary, " ({skel} skeleton, {weak} weak)");
+    }
+
+    println!("\n{}", summary.bold());
 }
 
 /// List discovered scenarios to terminal.
