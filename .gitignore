@@ -1,0 +1,30 @@
+# Rust
+/target/
+/bin/
+# Cargo.lock is ignored because this is a template repo with {{project-name}}
+# placeholders that prevent compilation until instantiated.
+/Cargo.lock
+
+# Git worktrees
+.worktrees/
+
+# Vendored dependencies
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Frontend (web/)
+web/node_modules/
+web/dist/

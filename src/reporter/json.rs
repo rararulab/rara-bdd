@@ -1,0 +1,32 @@
+//! Machine-readable JSON reporter.
+
+use crate::evaluator::SuiteResults;
+
+/// Print suite results as JSON to stdout.
+pub fn report(results: &SuiteResults) {
+    let scenarios: Vec<serde_json::Value> = results
+        .results
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "ac_id": r.ac_id,
+                "scenario": r.scenario_name,
+                "feature_file": r.feature_file,
+                "passed": r.passed,
+                "message": r.message,
+            })
+        })
+        .collect();
+
+    println!(
+        "{}",
+        serde_json::json!({
+            "ok": results.all_passed(),
+            "action": "bdd-run",
+            "passed": results.passed_count(),
+            "failed": results.failed_count(),
+            "total": results.total_count(),
+            "scenarios": scenarios,
+        })
+    );
+}
