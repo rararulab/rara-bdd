@@ -52,63 +52,35 @@ rara-bdd enables a two-agent pipeline where requirements flow from design to imp
 
 Skills are maintained in [rara-skills](https://github.com/rararulab/rara-skills). See each skill's SKILL.md for the full workflow, checklist, and failure handling.
 
-## CI Integration
+## Setup Guide
 
-Add BDD verification to your GitHub Actions workflow:
+The pipeline depends on three repos. Follow the steps below to set it up in any Rust project.
 
-```yaml
-name: BDD
-on:
-  pull_request:
-    paths:
-      - "features/**"
-      - "tests/**"
-      - "src/**"
+### What comes from where
 
-jobs:
-  bdd:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+| Repo | Provides |
+|------|----------|
+| [rara-bdd](https://github.com/rararulab/rara-bdd) | CLI tool (`setup`, `generate`, `coverage`, `list`) |
+| [rara-skills](https://github.com/rararulab/rara-skills) | `/bdd-design` and `/bdd-implement` Claude Code skills |
+| [.github](https://github.com/rararulab/.github) | `bdd_task.yml` issue template + `bdd.yml` reusable CI workflow |
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install rara-bdd
-        run: cargo install --git https://github.com/rararulab/rara-bdd
-
-      - name: Check step coverage
-        run: rara-bdd coverage
-
-      - name: Run BDD tests
-        run: cargo test --test bdd
-```
-
-For rararulab repos, you can use the org reusable workflow if available:
-
-```yaml
-jobs:
-  bdd:
-    uses: rararulab/.github/workflows/bdd.yml@main
-```
-
-## Bootstrapping a New Project
-
-### 1. Install rara-bdd
+### Step 1. Install the CLI
 
 ```bash
 cargo install --git https://github.com/rararulab/rara-bdd
 ```
 
-### 2. Scaffold the project
+### Step 2. Scaffold cucumber-rs in your project
 
 ```bash
 rara-bdd setup
 ```
 
-### 3. Add Claude Code skills
+Creates `features/`, `tests/bdd.rs`, `tests/steps/mod.rs`, and adds cucumber dependencies to `Cargo.toml`.
 
-Install from [rara-skills](https://github.com/rararulab/rara-skills):
+### Step 3. Add the skills
+
+Copy from [rara-skills](https://github.com/rararulab/rara-skills) into your project's `.claude/skills/`:
 
 ```bash
 mkdir -p .claude/skills
@@ -116,6 +88,58 @@ cp path/to/rara-skills/skills/bdd-design/SKILL.md .claude/skills/bdd-design.md
 cp path/to/rara-skills/skills/bdd-implement/SKILL.md .claude/skills/bdd-implement.md
 ```
 
-### 4. Add CI workflow
+This gives Claude Code the `/bdd-design` and `/bdd-implement` commands.
 
-Add the GitHub Actions workflow shown above to `.github/workflows/bdd.yml`.
+### Step 4. Add the issue template (org repos get this for free)
+
+For rararulab repos, the `bdd_task.yml` template is inherited from the [.github](https://github.com/rararulab/.github) repo automatically.
+
+For external repos, copy it:
+
+```bash
+mkdir -p .github/ISSUE_TEMPLATE
+cp path/to/.github/ISSUE_TEMPLATE/bdd_task.yml .github/ISSUE_TEMPLATE/
+```
+
+### Step 5. Add CI
+
+For rararulab repos, use the org reusable workflow:
+
+```yaml
+# .github/workflows/bdd.yml
+name: BDD
+on:
+  pull_request:
+    paths: ["features/**", "tests/**", "src/**"]
+
+jobs:
+  bdd:
+    uses: rararulab/.github/workflows/bdd.yml@main
+```
+
+For external repos, add the steps directly:
+
+```yaml
+# .github/workflows/bdd.yml
+name: BDD
+on:
+  pull_request:
+    paths: ["features/**", "tests/**", "src/**"]
+
+jobs:
+  bdd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install --git https://github.com/rararulab/rara-bdd
+      - run: rara-bdd coverage
+      - run: cargo test --test bdd
+```
+
+### Step 6. Run the pipeline
+
+```
+/bdd-design          # → creates a GitHub issue with Gherkin + design spec
+/bdd-implement       # → implements the issue, pushes PR, waits for CI green
+```
