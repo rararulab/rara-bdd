@@ -2,23 +2,23 @@
 
 ## `rara-bdd run`
 
-Execute scenarios and evaluate acceptance criteria.
+Execute matched tests and report results.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--features-dir <PATH>` | `features` | Features directory path |
-| `--filter <STRING>` | — | Filter by AC ID, tag, or name (case-insensitive substring) |
+| `--filter <STRING>` | -- | Filter by AC ID, tag, or name (case-insensitive substring) |
 | `--report <FORMAT>` | `terminal` | `terminal` / `json` / `markdown` |
-| `--mock` | `false` | CI-safe mode — skip external dependencies |
+| `--package <NAME>` | -- | Scope test discovery to a specific crate in a workspace |
 
 ```bash
 rara-bdd run
 rara-bdd run --filter AC-01
 rara-bdd run --features-dir ./features --report json
-rara-bdd run --mock
+rara-bdd run --package my-crate
 ```
 
-Exit: `0` = all pass, `1` = failure or error.
+Exit: `0` = all pass, `1` = failure or uncovered ACs.
 
 JSON output:
 
@@ -26,14 +26,14 @@ JSON output:
 {
   "ok": true,
   "action": "bdd-run",
-  "passed": 5, "failed": 0, "total": 5,
+  "passed": 5, "failed": 0, "uncovered": 0, "total": 5,
   "scenarios": [
     {
       "ac_id": "AC-01",
       "scenario": "AC-01 Valid credentials",
       "feature_file": "auth/login.feature",
-      "passed": true,
-      "message": "AC-01: acceptance criterion verified green"
+      "status": "passed",
+      "tests": ["ac_01_valid_credentials", "ac_01_returns_token"]
     }
   ]
 }
@@ -43,35 +43,48 @@ JSON output:
 
 ## `rara-bdd list`
 
-List discovered scenarios without executing.
+List scenarios with their matched test functions.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--features-dir <PATH>` | `features` | Features directory path |
-| `--filter <STRING>` | — | Filter by AC ID, tag, or name |
+| `--filter <STRING>` | -- | Filter by AC ID, tag, or name |
+| `--package <NAME>` | -- | Scope test discovery to a specific crate |
 
 ```bash
 rara-bdd list
 rara-bdd list --filter auth
+rara-bdd list --package my-crate
 ```
 
 ---
 
-## `rara-bdd validate`
+## `rara-bdd coverage`
 
-Schema-check `.eval.yaml` files without running assertions.
+Report coverage gaps -- which ACs have no matching test.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--features-dir <PATH>` | `features` | Features directory path |
+| `--package <NAME>` | -- | Scope test discovery to a specific crate |
 
 ```bash
-rara-bdd validate
+rara-bdd coverage
+rara-bdd coverage --package my-crate
 ```
 
 ```json
-{"ok": true, "action": "validate", "features": 3, "evals": 3, "errors": []}
+{
+  "ok": true,
+  "action": "coverage",
+  "total": 10,
+  "covered": 8,
+  "uncovered": 2,
+  "uncovered_ids": ["AC-04", "AC-09"]
+}
 ```
+
+Exit: `0` = full coverage, `1` = uncovered ACs exist.
 
 ---
 
@@ -82,9 +95,11 @@ Generate `TRACEABILITY.md` in features directory.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--features-dir <PATH>` | `features` | Features directory path |
+| `--package <NAME>` | -- | Scope test discovery to a specific crate |
 
 ```bash
 rara-bdd trace
+rara-bdd trace --package my-crate
 ```
 
 ```json
