@@ -8,7 +8,7 @@ use tempfile::TempDir;
 
 fn cmd() -> Command { Command::cargo_bin("rara-bdd").expect("binary should exist") }
 
-/// Create a temp dir with a minimal feature + eval setup.
+/// Create a temp dir with a minimal feature file.
 fn setup_features(tmp: &TempDir) -> String {
     let features_dir = tmp.path().join("features");
     fs::create_dir_all(&features_dir).unwrap();
@@ -23,19 +23,6 @@ Feature: Example feature
     When the check runs
     Then it passes
 ",
-    )
-    .unwrap();
-
-    fs::write(
-        features_dir.join("example.eval.yaml"),
-        r#"AC-01:
-  description: "Basic check"
-  source_assertions:
-    - file: Cargo.toml
-      contains:
-        - "rara-bdd"
-      description: "Project name is rara-bdd"
-"#,
     )
     .unwrap();
 
@@ -55,27 +42,27 @@ fn list_shows_scenarios() {
 }
 
 #[test]
-fn run_passes_with_valid_source_assertion() {
+fn run_reports_uncovered_when_no_tests() {
     let tmp = TempDir::new().unwrap();
     let features_dir = setup_features(&tmp);
 
     cmd()
         .args(["run", "--features-dir", &features_dir, "--report", "json"])
         .assert()
-        .success()
-        .stdout(predicate::str::contains(r#""ok":true"#));
+        .failure()
+        .stdout(predicate::str::contains(r#""status":"uncovered""#));
 }
 
 #[test]
-fn validate_checks_eval_files() {
+fn coverage_reports_uncovered() {
     let tmp = TempDir::new().unwrap();
     let features_dir = setup_features(&tmp);
 
     cmd()
-        .args(["validate", "--features-dir", &features_dir])
+        .args(["coverage", "--features-dir", &features_dir])
         .assert()
-        .success()
-        .stdout(predicate::str::contains(r#""ok":true"#));
+        .failure()
+        .stdout(predicate::str::contains(r#""uncovered":1"#));
 }
 
 #[test]
@@ -101,4 +88,5 @@ fn trace_generates_traceability_md() {
     assert!(trace_path.exists());
     let content = fs::read_to_string(trace_path).unwrap();
     assert!(content.contains("AC-01"));
+    assert!(content.contains("uncovered"));
 }

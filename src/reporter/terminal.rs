@@ -2,17 +2,20 @@
 
 use colored::Colorize;
 
-use crate::{discovery::Scenario, evaluator::SuiteResults};
+use crate::{
+    matcher::MatchedAc,
+    runner::{AcStatus, SuiteResults},
+};
 
 /// Print suite results to terminal with colors.
 pub fn report(results: &SuiteResults) {
     println!();
 
     for result in &results.results {
-        let status = if result.passed {
-            "PASS".green()
-        } else {
-            "FAIL".red()
+        let status = match result.status {
+            AcStatus::Passed => "PASS".green(),
+            AcStatus::Failed => "FAIL".red(),
+            AcStatus::Uncovered => "NONE".yellow(),
         };
 
         println!(
@@ -22,57 +25,73 @@ pub fn report(results: &SuiteResults) {
             result.feature_file.dimmed()
         );
 
-        if !result.passed {
+        if result.status == AcStatus::Failed || result.status == AcStatus::Uncovered {
             println!("    {}", result.message.dimmed());
+        }
+
+        for test in &result.tests {
+            println!("    {} {test}", "test:".dimmed());
         }
     }
 
     println!(
         "\n{}",
         format!(
-            "Summary: {} passed, {} failed, {} total",
+            "Summary: {} passed, {} failed, {} uncovered, {} total",
             results.passed_count(),
             results.failed_count(),
+            results.uncovered_count(),
             results.total_count()
         )
         .bold()
     );
 }
 
-/// List discovered scenarios to terminal.
-pub fn list_scenarios(scenarios: &[Scenario]) {
-    println!("\n{}\n", "Discovered BDD scenarios:".bold());
+/// List discovered ACs and their matched tests.
+pub fn list_matched(matched: &[MatchedAc]) {
+    println!("\n{}\n", "BDD Scenarios → Tests:".bold());
 
     let mut current_feature = String::new();
-    for scenario in scenarios {
-        if scenario.feature_file != current_feature {
-            current_feature.clone_from(&scenario.feature_file);
+    for m in matched {
+        if m.scenario.feature_file != current_feature {
+            current_feature.clone_from(&m.scenario.feature_file);
             println!("  {}", current_feature.bold().underline());
         }
 
-        let has_eval = if scenario.eval.is_some() {
-            "".green()
+        let coverage = if m.is_covered() {
+            format!(
+                " ({} test{})",
+                m.tests.len(),
+                if m.tests.len() == 1 { "" } else { "s" }
+            )
+            .green()
         } else {
-            " (no eval)".yellow()
+            " (uncovered)".yellow()
         };
 
         println!(
-            "    {} {}{has_eval}",
-            scenario.ac_id.cyan(),
-            scenario.name.dimmed()
+            "    {} {}{coverage}",
+            m.scenario.ac_id.cyan(),
+            m.scenario.name.dimmed()
         );
+
+        for test in &m.tests {
+            println!("      {} {test}", "→".dimmed());
+        }
     }
 
-    if scenarios.is_empty() {
+    if matched.is_empty() {
         println!("  {}", "No scenarios found".yellow());
     }
 
+    let covered = matched.iter().filter(|m| m.is_covered()).count();
     println!(
         "\n  {}",
         format!(
-            "Total: {} scenario{}",
-            scenarios.len(),
-            if scenarios.len() == 1 { "" } else { "s" }
+            "Total: {} ACs, {} covered, {} uncovered",
+            matched.len(),
+            covered,
+            matched.len() - covered
         )
         .dimmed()
     );

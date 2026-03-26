@@ -8,26 +8,21 @@ use std::{fs, path::Path};
 
 use snafu::ResultExt;
 
-use crate::{
-    error::{self, FeaturesNotFoundSnafu, IoSnafu},
-    evaluator::loader,
-};
+use crate::error::{self, FeaturesNotFoundSnafu, IoSnafu};
 
 /// A discovered BDD scenario from a `.feature` file.
 #[derive(Debug, Clone)]
 pub struct Scenario {
-    /// Stable AC ID tag when present (e.g. `AC-01`).
+    /// Stable AC ID tag (e.g., `AC-01`).
     pub ac_id:        String,
     /// Scenario title from `Scenario:` line.
     pub name:         String,
-    /// Feature file relative path (e.g. `auth/login.feature`).
+    /// Feature file relative path (e.g., `auth/login.feature`).
     pub feature_file: String,
     /// All tags on this scenario (without `@` prefix).
     pub tags:         Vec<String>,
     /// Given/When/Then steps as raw strings.
     pub steps:        Vec<String>,
-    /// Paired eval config (loaded from .eval.yaml if present).
-    pub eval:         Option<loader::AcEval>,
 }
 
 /// Discover all scenarios from `.feature` files in the given directory.
@@ -45,15 +40,6 @@ pub fn discover(features_dir: &str, filter: Option<&str>) -> error::Result<Vec<S
     let mut scenarios = Vec::new();
     discover_recursive(dir, dir, &mut scenarios)?;
 
-    // Load paired eval configs
-    for scenario in &mut scenarios {
-        let eval_path = eval_path_for_feature(features_dir, &scenario.feature_file);
-        if let Ok(evals) = loader::load_eval_file(&eval_path) {
-            scenario.eval = evals.get(&scenario.ac_id).cloned();
-        }
-    }
-
-    // Apply filter
     if let Some(f) = filter {
         let f_lower = f.to_lowercase();
         scenarios.retain(|s| {
@@ -106,7 +92,6 @@ fn parse_feature(
     for scenario in &feature.scenarios {
         let tags = scenario.tags.clone();
 
-        // Extract AC ID from tags (first tag matching AC-XX pattern)
         let ac_id = tags
             .iter()
             .find(|t| is_ac_tag(t))
@@ -125,7 +110,6 @@ fn parse_feature(
             feature_file: feature_file.to_string(),
             tags,
             steps,
-            eval: None,
         });
     }
 
@@ -135,12 +119,6 @@ fn parse_feature(
 /// Check if a tag matches the AC-XX pattern.
 fn is_ac_tag(tag: &str) -> bool {
     tag.starts_with("AC-") && tag.len() > 3 && tag[3..].chars().all(|c| c.is_ascii_digit())
-}
-
-/// Derive the `.eval.yaml` path from a `.feature` file path.
-fn eval_path_for_feature(features_dir: &str, feature_file: &str) -> String {
-    let stem = feature_file.trim_end_matches(".feature");
-    format!("{features_dir}/{stem}.eval.yaml")
 }
 
 #[cfg(test)]
@@ -154,13 +132,5 @@ mod tests {
         assert!(!is_ac_tag("AC-"));
         assert!(!is_ac_tag("ac-01"));
         assert!(!is_ac_tag("hooks"));
-    }
-
-    #[test]
-    fn test_eval_path_for_feature() {
-        assert_eq!(
-            eval_path_for_feature("features", "auth/login.feature"),
-            "features/auth/login.eval.yaml"
-        );
     }
 }

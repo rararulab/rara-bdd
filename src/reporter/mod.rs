@@ -4,7 +4,7 @@ mod json;
 mod markdown;
 mod terminal;
 
-use crate::{cli::ReportFormat, discovery::Scenario, evaluator::SuiteResults};
+use crate::{cli::ReportFormat, matcher::MatchedAc, runner::SuiteResults};
 
 /// Output suite results in the requested format.
 pub fn report(results: &SuiteResults, format: ReportFormat) {
@@ -15,5 +15,5 @@ pub fn report(results: &SuiteResults, format: ReportFormat) {
     }
 }
 
-/// List discovered scenarios to terminal.
-pub fn list_scenarios(scenarios: &[Scenario]) { terminal::list_scenarios(scenarios); }
+/// List discovered ACs and their matched tests to terminal.
+pub fn list_matched(matched: &[MatchedAc]) { terminal::list_matched(matched); }

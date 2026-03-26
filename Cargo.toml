@@ -1,8 +1,8 @@
 [package]
 name = "rara-bdd"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
-description = "BDD testing framework for rararulab — Gherkin + YAML evaluator DSL"
+description = "BDD testing framework for rararulab — Gherkin + naming convention mapping to #[test]"
 license = "MIT"
 repository = "https://github.com/rararulab/rara-bdd"
 
@@ -11,14 +11,12 @@ name = "rara-bdd"
 path = "src/main.rs"
 
 [dependencies]
-bon = "3"
 clap = { version = "4", features = ["derive"] }
 colored = "2"
 cucumber = { version = "0.22", default-features = false, features = ["output-json"] }
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.9"
 snafu = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
